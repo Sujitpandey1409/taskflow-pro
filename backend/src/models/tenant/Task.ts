@@ -1,12 +1,12 @@
 // src/models/tenant/Task.ts
-import { Schema, Document, Model } from 'mongoose';
+import { Schema, Document, Model, Types } from 'mongoose';
 
 export interface ITask extends Document {
   title: string;
   description?: string;
   status: 'TODO' | 'IN_PROGRESS' | 'DONE';
-  assignee?: string;
-  projectId: string;
+  assignee?: Types.ObjectId | null;
+  projectId: Schema.Types.ObjectId;
 }
 
 export const TaskSchema = new Schema<ITask>(
