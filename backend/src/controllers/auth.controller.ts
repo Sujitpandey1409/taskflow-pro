@@ -1,14 +1,18 @@
 // src/controllers/auth.controller.ts (FIXED VERSION)
-import { Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
-import { User, IUser } from '../models/global/User';
-import { Organization } from '../models/global/Organization';
-import { connectGlobalDB, connectTenantDB } from '../config/db';
-import { generateAccessToken, generateRefreshToken } from '../utils/generateTokens';
-import { z } from 'zod';
-import path from 'path';
-import fs from 'fs';
-import jwt from 'jsonwebtoken';
+import { Request, Response } from "express";
+import bcrypt from "bcryptjs";
+import { User, IUser } from "../models/global/User";
+import { Organization } from "../models/global/Organization";
+import { OrganizationMember } from "../models/global/OrganizationMember";
+import { connectGlobalDB, connectTenantDB } from "../config/db";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+} from "../utils/generateTokens";
+import { z } from "zod";
+import path from "path";
+import fs from "fs";
+import jwt from "jsonwebtoken";
 
 // === Zod Validation ===
 const registerSchema = z.object({
@@ -22,7 +26,10 @@ const registerSchema = z.object({
 const loadModelSchema = (modelName: string) => {
   const filePath = path.join(__dirname, `../models/tenant/${modelName}.ts`);
   if (fs.existsSync(filePath)) {
-    return require(`../models/tenant/${modelName}`).TaskSchema || require(`../models/tenant/${modelName}`).default;
+    return (
+      require(`../models/tenant/${modelName}`).TaskSchema ||
+      require(`../models/tenant/${modelName}`).default
+    );
   }
   return null;
 };
@@ -40,7 +47,7 @@ export const register = async (req: Request, res: Response) => {
     // 3. Check if user exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
+      return res.status(400).json({ message: "User already exists" });
     }
 
     // 4. Hash password
@@ -55,7 +62,10 @@ export const register = async (req: Request, res: Response) => {
     });
 
     // 6. Create Organization
-    const orgSlug = orgName.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36);
+    const orgSlug =
+      orgName.toLowerCase().replace(/\s+/g, "-") +
+      "-" +
+      Date.now().toString(36);
     const dbName = `taskflow_org_${user._id}`;
 
     const org = await Organization.create({
@@ -65,11 +75,20 @@ export const register = async (req: Request, res: Response) => {
       ownerId: user._id,
     });
 
+    await OrganizationMember.create({
+      userId: user._id,
+      orgId: org._id,
+      role: "OWNER",
+      invitedBy: user._id,
+      status: "ACCEPTED",
+      joinedAt: new Date(),
+    });
+
     // 7. Create Tenant DB
     tenantConn = await connectTenantDB(dbName);
 
     // 8. === SAFELY REGISTER ONLY EXISTING MODELS ===
-    const modelsToLoad = ['Task', 'Project']; // Add more later: 'Project', 'Comment', etc.
+    const modelsToLoad = ["Task", "Project"]; // Add more later: 'Project', 'Comment', etc.
 
     for (const modelName of modelsToLoad) {
       const schema = loadModelSchema(modelName);
@@ -81,36 +100,61 @@ export const register = async (req: Request, res: Response) => {
       }
     }
 
-    // 9. Set current org
-    user.currentOrgId = org._id;
+    // 9. Set current org and add membership
+    await User.findByIdAndUpdate(user._id, {
+      currentOrgId: org._id,
+      memberships: [{ orgId: org._id, role: "OWNER", status: "ACCEPTED" }],
+    });
+
+    // process any pending invites
+    const pendingInvites = await OrganizationMember.find({
+      userId: user._id,
+      status: "PENDING",
+    });
+
+    for (const invite of pendingInvites) {
+      invite.status = "ACCEPTED";
+      invite.joinedAt = new Date();
+      await invite.save();
+
+      // Add to user memberships
+      if (!user.memberships) {
+        user.memberships = [];
+      }
+      user.memberships.push({
+        orgId: invite.orgId,
+        role: invite.role,
+        status: "ACCEPTED",
+      });
+    }
+
     await user.save();
 
     // 10. Generate Tokens
-    const accessToken = generateAccessToken(user._id, org._id, 'OWNER');
+    const accessToken = generateAccessToken(user._id, org._id, "OWNER");
     const refreshToken = generateRefreshToken(user._id);
 
     // 11. Set HttpOnly Cookies
-    res.cookie('access_token', accessToken, {
+    res.cookie("access_token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
       maxAge: 15 * 60 * 1000,
     });
 
-    res.cookie('refresh_token', refreshToken, {
+    res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     // 12. Success
     res.status(201).json({
-      message: 'User & organization created successfully',
+      message: "User & organization created successfully",
       user: { id: user._id, name, email },
       org: { id: org._id, name: orgName, slug: orgSlug },
     });
-
   } catch (err: any) {
     // === CRITICAL: If tenant setup fails → rollback ===
     if (tenantConn) {
@@ -118,73 +162,76 @@ export const register = async (req: Request, res: Response) => {
         await tenantConn.dropDatabase();
         console.log(`Rolled back tenant DB due to error`);
       } catch (rollbackErr) {
-        console.error('Rollback failed:', rollbackErr);
+        console.error("Rollback failed:", rollbackErr);
       }
     }
 
-    console.error('Register error:', err);
-    res.status(500).json({ 
-      message: 'Registration failed', 
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined 
+    console.error("Register error:", err);
+    res.status(500).json({
+      message: "Registration failed",
+      error: process.env.NODE_ENV === "development" ? err.message : undefined,
     });
   }
 };
 
-// login user and set tokens in cookies 
+// login user and set tokens in cookies
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = z.object({
-      email: z.string().email(),
-      password: z.string().min(6),
-    }).parse(req.body);
+    const { email, password } = z
+      .object({
+        email: z.string().email(),
+        password: z.string().min(6),
+      })
+      .parse(req.body);
 
     await connectGlobalDB();
 
-    const user: IUser | null = await User.findOne({ email }).select('+password');
+    const user: IUser | null = await User.findOne({ email }).select(
+      "+password"
+    );
     if (!user) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ message: "Invalid credentials" });
     }
 
     // Get user's current org
     if (!user.currentOrgId) {
-      return res.status(400).json({ message: 'No organization selected' });
+      return res.status(400).json({ message: "No organization selected" });
     }
 
     const org = await Organization.findById(user.currentOrgId);
     if (!org) {
-      return res.status(400).json({ message: 'Organization not found' });
+      return res.status(400).json({ message: "Organization not found" });
     }
 
     // Generate tokens
-    const accessToken = generateAccessToken(user._id, org._id, 'OWNER'); // Role from org later
+    const accessToken = generateAccessToken(user._id, org._id, "OWNER"); // Role from org later
     const refreshToken = generateRefreshToken(user._id);
 
     // Set cookies
-    res.cookie('access_token', accessToken, {
+    res.cookie("access_token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
       maxAge: 15 * 60 * 1000,
     });
 
-    res.cookie('refresh_token', refreshToken, {
+    res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.json({
-      message: 'Login successful',
+      message: "Login successful",
       user: { id: user._id, name: user.name, email: user.email },
       org: { id: org._id, name: org.name, slug: org.slug },
     });
-
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
@@ -195,37 +242,40 @@ export const refresh = async (req: Request, res: Response) => {
   const refreshToken = req.cookies.refresh_token;
 
   if (!refreshToken) {
-    return res.status(401).json({ message: 'No refresh token' });
+    return res.status(401).json({ message: "No refresh token" });
   }
 
   try {
-    const decoded: any = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!);
+    const decoded: any = jwt.verify(
+      refreshToken,
+      process.env.JWT_REFRESH_SECRET!
+    );
     const user = await User.findById(decoded.userId);
     if (!user || !user.currentOrgId) {
-      return res.status(401).json({ message: 'Invalid refresh token' });
+      return res.status(401).json({ message: "Invalid refresh token" });
     }
 
     const org = await Organization.findById(user.currentOrgId);
-    if (!org) return res.status(401).json({ message: 'Org not found' });
+    if (!org) return res.status(401).json({ message: "Org not found" });
 
-    const newAccessToken = generateAccessToken(user._id, org._id, 'OWNER');
+    const newAccessToken = generateAccessToken(user._id, org._id, "OWNER");
 
-    res.cookie('access_token', newAccessToken, {
+    res.cookie("access_token", newAccessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
       maxAge: 15 * 60 * 1000,
     });
 
-    res.json({ message: 'Token refreshed' });
+    res.json({ message: "Token refreshed" });
   } catch (err) {
-    res.status(401).json({ message: 'Invalid refresh token' });
+    res.status(401).json({ message: "Invalid refresh token" });
   }
 };
 
 // Logout user by clearing cookies
 export const logout = (req: Request, res: Response) => {
-  res.clearCookie('access_token');
-  res.clearCookie('refresh_token');
-  res.json({ message: 'Logged out' });
+  res.clearCookie("access_token");
+  res.clearCookie("refresh_token");
+  res.json({ message: "Logged out" });
 };

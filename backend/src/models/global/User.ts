@@ -6,6 +6,11 @@ export interface IUser {
   password: string;
   name?: string;
   currentOrgId?: string;
+  memberships?: Array<{
+    orgId: string;
+    role: string;
+    status: string;
+  }>;
 }
 
 const userSchema = new Schema<IUser>(
@@ -14,6 +19,11 @@ const userSchema = new Schema<IUser>(
     password: { type: String, required: true },
     name: { type: String },
     currentOrgId: { type: String },
+    memberships: [{
+      orgId: String,
+      role: String,
+      status: String,
+    }],
   },
   { timestamps: true }
 );
