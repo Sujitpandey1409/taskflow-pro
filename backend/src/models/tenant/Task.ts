@@ -1,23 +1,42 @@
 // src/models/tenant/Task.ts
-import { Schema, Document, Model, Types } from 'mongoose';
+import { Schema } from "mongoose";
 
-export interface ITask extends Document {
-  title: string;
-  description?: string;
-  status: 'TODO' | 'IN_PROGRESS' | 'DONE';
-  assignee?: Types.ObjectId | null;
-  projectId: Schema.Types.ObjectId;
-}
-
-export const TaskSchema = new Schema<ITask>(
+const TaskSchema = new Schema(
   {
-    title: { type: String, required: true },
-    description: String,
-    status: { type: String, enum: ['TODO', 'IN_PROGRESS', 'DONE'], default: 'TODO' },
-    assignee: { type: Schema.Types.ObjectId },
-    projectId: { type: Schema.Types.ObjectId, required: true },
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    description: {
+      type: String,
+      trim: true,
+    },
+    status: {
+      type: String,
+      enum: ["TODO", "IN_PROGRESS", "DONE"],
+      default: "TODO",
+    },
+    priority: {
+      type: String,
+      enum: ["LOW", "MEDIUM", "HIGH", "URGENT"],
+      default: "MEDIUM",
+    },
+    assignee: {
+      type: String, // userId of member
+      default: null,
+    },
+    projectId: {
+      type: Schema.Types.ObjectId,
+      required: true,
+    },
+    dueDate: {
+      type: Date,
+      default: null,
+    },
+    labels: [String],
   },
   { timestamps: true }
 );
 
-// We'll attach this to tenant connection later
+export default TaskSchema;

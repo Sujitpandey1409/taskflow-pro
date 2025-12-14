@@ -1,13 +1,14 @@
 // src/controllers/auth.controller.ts (FIXED VERSION)
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { User } from '../models/global/User';
+import { User, IUser } from '../models/global/User';
 import { Organization } from '../models/global/Organization';
 import { connectGlobalDB, connectTenantDB } from '../config/db';
 import { generateAccessToken, generateRefreshToken } from '../utils/generateTokens';
 import { z } from 'zod';
 import path from 'path';
 import fs from 'fs';
+import jwt from 'jsonwebtoken';
 
 // === Zod Validation ===
 const registerSchema = z.object({
@@ -68,7 +69,7 @@ export const register = async (req: Request, res: Response) => {
     tenantConn = await connectTenantDB(dbName);
 
     // 8. === SAFELY REGISTER ONLY EXISTING MODELS ===
-    const modelsToLoad = ['Task']; // Add more later: 'Project', 'Comment', etc.
+    const modelsToLoad = ['Task', 'Project']; // Add more later: 'Project', 'Comment', etc.
 
     for (const modelName of modelsToLoad) {
       const schema = loadModelSchema(modelName);
@@ -127,4 +128,104 @@ export const register = async (req: Request, res: Response) => {
       error: process.env.NODE_ENV === 'development' ? err.message : undefined 
     });
   }
+};
+
+// login user and set tokens in cookies 
+export const login = async (req: Request, res: Response) => {
+  try {
+    const { email, password } = z.object({
+      email: z.string().email(),
+      password: z.string().min(6),
+    }).parse(req.body);
+
+    await connectGlobalDB();
+
+    const user: IUser | null = await User.findOne({ email }).select('+password');
+    if (!user) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    // Get user's current org
+    if (!user.currentOrgId) {
+      return res.status(400).json({ message: 'No organization selected' });
+    }
+
+    const org = await Organization.findById(user.currentOrgId);
+    if (!org) {
+      return res.status(400).json({ message: 'Organization not found' });
+    }
+
+    // Generate tokens
+    const accessToken = generateAccessToken(user._id, org._id, 'OWNER'); // Role from org later
+    const refreshToken = generateRefreshToken(user._id);
+
+    // Set cookies
+    res.cookie('access_token', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie('refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.json({
+      message: 'Login successful',
+      user: { id: user._id, name: user.name, email: user.email },
+      org: { id: org._id, name: org.name, slug: org.slug },
+    });
+
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// if refresh token is valid, issue new access token
+export const refresh = async (req: Request, res: Response) => {
+  const refreshToken = req.cookies.refresh_token;
+
+  if (!refreshToken) {
+    return res.status(401).json({ message: 'No refresh token' });
+  }
+
+  try {
+    const decoded: any = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!);
+    const user = await User.findById(decoded.userId);
+    if (!user || !user.currentOrgId) {
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+
+    const org = await Organization.findById(user.currentOrgId);
+    if (!org) return res.status(401).json({ message: 'Org not found' });
+
+    const newAccessToken = generateAccessToken(user._id, org._id, 'OWNER');
+
+    res.cookie('access_token', newAccessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.json({ message: 'Token refreshed' });
+  } catch (err) {
+    res.status(401).json({ message: 'Invalid refresh token' });
+  }
+};
+
+// Logout user by clearing cookies
+export const logout = (req: Request, res: Response) => {
+  res.clearCookie('access_token');
+  res.clearCookie('refresh_token');
+  res.json({ message: 'Logged out' });
 };
