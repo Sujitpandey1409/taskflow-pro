@@ -88,47 +88,13 @@ export const register = async (req: Request, res: Response) => {
     tenantConn = await connectTenantDB(dbName);
 
     // 8. === SAFELY REGISTER ONLY EXISTING MODELS ===
-    const modelsToLoad = ["Task", "Project"]; // Add more later: 'Project', 'Comment', etc.
-
-    for (const modelName of modelsToLoad) {
-      const schema = loadModelSchema(modelName);
-      if (schema) {
-        tenantConn.model(modelName, schema);
-        console.log(`Model '${modelName}' registered in tenant DB: ${dbName}`);
-      } else {
-        console.warn(`Model file '${modelName}.ts' not found — skipping`);
-      }
-    }
+    
 
     // 9. Set current org and add membership
     await User.findByIdAndUpdate(user._id, {
       currentOrgId: org._id,
       memberships: [{ orgId: org._id, role: "OWNER", status: "ACCEPTED" }],
     });
-
-    // process any pending invites
-    const pendingInvites = await OrganizationMember.find({
-      userId: user._id,
-      status: "PENDING",
-    });
-
-    for (const invite of pendingInvites) {
-      invite.status = "ACCEPTED";
-      invite.joinedAt = new Date();
-      await invite.save();
-
-      // Add to user memberships
-      if (!user.memberships) {
-        user.memberships = [];
-      }
-      user.memberships.push({
-        orgId: invite.orgId,
-        role: invite.role,
-        status: "ACCEPTED",
-      });
-    }
-
-    await user.save();
 
     // 10. Generate Tokens
     const accessToken = generateAccessToken(user._id, org._id, "OWNER");
@@ -226,6 +192,30 @@ export const login = async (req: Request, res: Response) => {
       sameSite: "strict",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+
+    // process any pending invites
+    const pendingInvites = await OrganizationMember.find({
+      userId: user._id,
+      status: "PENDING",
+    });
+
+    for (const invite of pendingInvites) {
+      invite.status = "ACCEPTED";
+      invite.joinedAt = new Date();
+      await invite.save();
+
+      // Add to user memberships
+      if (!user.memberships) {
+        user.memberships = [];
+      }
+      user.memberships.push({
+        orgId: invite.orgId,
+        role: invite.role,
+        status: "ACCEPTED",
+      });
+    }
+
+    await User.findByIdAndUpdate(user._id, { memberships: user.memberships });
 
     res.json({
       message: "Login successful",
