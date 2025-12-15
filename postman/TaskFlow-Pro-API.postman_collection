@@ -1,0 +1,289 @@
+{
+	"info": {
+		"_postman_id": "f5553b77-b8b2-4e8b-8343-cb634fb9b571",
+		"name": "taskflow-pro",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "50722378",
+		"_collection_link": "https://pandeypandaa-6329194.postman.co/workspace/Pandaa-Pandey's-Workspace~f8570957-a5fc-4e99-8d7b-0678b5672068/collection/50722378-f5553b77-b8b2-4e8b-8343-cb634fb9b571?action=share&source=collection_link&creator=50722378"
+	},
+	"item": [
+		{
+			"name": "runningcheck",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{baseUrl}}/health/",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"health",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "register",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"name\": \"Alex Morgan\",\r\n  \"email\": \"alex@taskflow.com\",\r\n  \"password\": \"secret123\",\r\n  \"orgName\": \"TaskFlow Inc\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auth/register",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"register"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "login",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"email\": \"alex@taskflow.com\",\r\n  \"password\": \"secret123\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/auth/login",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"auth",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "createproject",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Cookie",
+						"value": "access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTNmNzljNzZhNWFiN2E2Y2UwOTI3ZDQiLCJvcmdJZCI6IjY5M2Y3OWM3NmE1YWI3YTZjZTA5MjdkNiIsInJvbGUiOiJPV05FUiIsImlhdCI6MTc2NTgwNDM4OSwiZXhwIjoxNzY1ODA1Mjg5fQ.execjriB6p4bWIZEelmk23Lu88ViVFCub_3JjgEGhug",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"name\": \"Desktop App Launch\",\r\n  \"description\": \"Build and launch web app\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/projects",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"projects"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "createTask",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Cookie",
+						"value": "access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTNmNzljNzZhNWFiN2E2Y2UwOTI3ZDQiLCJvcmdJZCI6IjY5M2Y3OWM3NmE1YWI3YTZjZTA5MjdkNiIsInJvbGUiOiJPV05FUiIsImlhdCI6MTc2NTgwNDM4OSwiZXhwIjoxNzY1ODA1Mjg5fQ.execjriB6p4bWIZEelmk23Lu88ViVFCub_3JjgEGhug",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n  \"title\": \"Setup CI/CD Pipeline for web app\",\r\n  \"description\": \"GitHub Actions + Docker\",\r\n  \"projectId\": \"69400995ea9c8bc20d1dcd61\",  // use _id from previous project\r\n  \"priority\": \"HIGH\",\r\n  \"dueDate\": \"2025-12-31\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://localhost:5000/api/tasks",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"tasks"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "newAccessKey",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Cookie",
+						"value": "refresh_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTNmNzljNzZhNWFiN2E2Y2UwOTI3ZDQiLCJpYXQiOjE3NjU3OTkwMjcsImV4cCI6MTc2NjQwMzgyN30.caXcKWRV0jXLwCcOaVK31IQ2RVgaE-htVMO-jQvuJI0",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:5000/api/auth/refresh",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"auth",
+						"refresh"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "getTask",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Cookie",
+						"value": "access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTNmNzljNzZhNWFiN2E2Y2UwOTI3ZDQiLCJvcmdJZCI6IjY5M2Y3OWM3NmE1YWI3YTZjZTA5MjdkNiIsInJvbGUiOiJPV05FUiIsImlhdCI6MTc2NTgwNDM4OSwiZXhwIjoxNzY1ODA1Mjg5fQ.execjriB6p4bWIZEelmk23Lu88ViVFCub_3JjgEGhug",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "http://localhost:5000/api/tasks?projectId=69400995ea9c8bc20d1dcd61",
+					"protocol": "http",
+					"host": [
+						"localhost"
+					],
+					"port": "5000",
+					"path": [
+						"api",
+						"tasks"
+					],
+					"query": [
+						{
+							"key": "projectId",
+							"value": "69400995ea9c8bc20d1dcd61"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "getProject",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Cookie",
+						"value": "access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTNmNzljNzZhNWFiN2E2Y2UwOTI3ZDQiLCJvcmdJZCI6IjY5M2Y3OWM3NmE1YWI3YTZjZTA5MjdkNiIsInJvbGUiOiJPV05FUiIsImlhdCI6MTc2NTgwNDM4OSwiZXhwIjoxNzY1ODA1Mjg5fQ.execjriB6p4bWIZEelmk23Lu88ViVFCub_3JjgEGhug",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/projects",
+					"host": [
+						"{{baseUrl}}"
+					],
+					"path": [
+						"api",
+						"projects"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "logOut",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Cookie",
+						"value": "access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTNmNzljNzZhNWFiN2E2Y2UwOTI3ZDQiLCJvcmdJZCI6IjY5M2Y3OWM3NmE1YWI3YTZjZTA5MjdkNiIsInJvbGUiOiJPV05FUiIsImlhdCI6MTc2NTc5NzA0OSwiZXhwIjoxNzY1Nzk3OTQ5fQ.arluSs0VMsU_6ja8C0SIbzhTfanxhgQac2gpjKelS5k",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}api/auth/logout",
+					"host": [
+						"{{baseUrl}}api"
+					],
+					"path": [
+						"auth",
+						"logout"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "",
+			"type": "default"
+		}
+	]
+}
