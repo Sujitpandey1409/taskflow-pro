@@ -1,27 +1,43 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useAuthStore } from '@/store/authStore';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card } from '@/components/ui/card';
-import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { useAuthStore } from "@/store/authStore";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import axios from "axios";
+
+// 🔹 react-hook-form + zod
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { loginSchema, LoginFormData } from "@/validations/auth";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const { login, isLoading } = useAuthStore();
   const router = useRouter();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+  });
+
+  const onSubmit = async (data: LoginFormData) => {
     try {
-      await login(email, password);
-      router.push('/dashboard');
+      await login(data.email, data.password);
+      toast.success("Login successful 🎉");
+      router.push("/dashboard");
     } catch (err) {
-      alert('Login failed');
+      if (axios.isAxiosError(err)) {
+        toast.error(err.response?.data?.message || "Login failed");
+      } else {
+        toast.error("Unexpected error occurred");
+      }
     }
   };
 
@@ -33,29 +49,37 @@ export default function LoginPage() {
           <p className="text-gray-600 mt-2">Welcome back! Please login</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Email */}
           <div>
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
+              {...register("email")}
               className="mt-2"
             />
+            {errors.email && (
+              <p className="text-sm text-red-500 mt-1">
+                {errors.email.message}
+              </p>
+            )}
           </div>
 
+          {/* Password */}
           <div>
             <Label htmlFor="password">Password</Label>
             <Input
               id="password"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
+              {...register("password")}
               className="mt-2"
             />
+            {errors.password && (
+              <p className="text-sm text-red-500 mt-1">
+                {errors.password.message}
+              </p>
+            )}
           </div>
 
           <Button type="submit" className="w-full" disabled={isLoading}>
@@ -65,14 +89,17 @@ export default function LoginPage() {
                 Logging in...
               </>
             ) : (
-              'Login'
+              "Login"
             )}
           </Button>
         </form>
 
         <p className="text-center mt-6 text-sm text-gray-600">
-          Don't have an account?{' '}
-          <a href="/register" className="text-blue-600 font-medium hover:underline">
+          Don't have an account?{" "}
+          <a
+            href="/register"
+            className="text-blue-600 font-medium hover:underline"
+          >
             Register
           </a>
         </p>

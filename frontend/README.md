@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TaskFlow Pro — Multi-Tenant Task Management SaaS
 
-## Getting Started
+**Full-Stack MERN + Next.js 14 App Router | Production-Grade | Real Multi-Tenancy**
 
-First, run the development server:
+- **Live Demo:** [https://taskflow-pro.vercel.app](https://taskflow-pro.vercel.app) (coming after deploy)
+- **Backend Repo:** [github.com/yourname/https://github.com/Sujitpandey1409/taskflow-pro](...)
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+![TaskFlow Pro Dashboard](screenshots/dashboard.png)
+![Projects Page](screenshots/projects.png)
+![Beautiful Login](screenshots/login.png)
+
+## Features
+
+- **Database-per-Organization** — True multi-tenancy
+- **RBAC** (Owner / Admin / Member) with invite system
+- **Secure Auth** — JWT + HttpOnly Refresh Tokens + Auto-refresh
+- **Real-time Ready** — Built for Socket.io
+- **Next.js 14 App Router + Tailwind + shadcn/ui + Sonner + Zustand + TanStack Query**
+- **Middleware Protection** — Optimized routing logic
+- **Zod Validation** — Client & server-side ready
+- **Modern UI** — Geist Font + Gradient Design
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Frontend | Next.js 14 (App Router), TypeScript, Tailwind, shadcn/ui, Sonner |
+| State Management | Zustand + TanStack Query |
+| Backend | Node.js, Express, MongoDB, Mongoose |
+| Authentication | JWT + HttpOnly Cookies + Refresh Tokens |
+| Multi-Tenancy | One database per organization |
+| Validation | Zod |
+| Deployment | Vercel (frontend), Render/Railway (backend) |
+
+## Screenshots
+
+<div align="center">
+    <img src="screenshots/login.png" width="49%" alt="Login" />
+    <img src="screenshots/register.png" width="49%" alt="Register" />
+    <img src="screenshots/dashboard.png" width="100%" alt="Dashboard" />
+    <img src="screenshots/projects.png" width="100%" alt="Projects" />
+    <img src="screenshots/sidebar-mobile.png" width="32%" alt="Mobile Menu" />
+</div>
+
+## Project Structure
+
+```
+taskflow-pro/
+├── backend/          # Express + MongoDB (multi-tenant)
+├── frontend/         # Next.js 14 + Tailwind + shadcn/ui
+├── screenshots/      # UI previews
+└── README.md         # Documentation
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Why This Project Stands Out
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Not a tutorial clone
+- Real SaaS architecture (like ClickUp, Linear, Notion)
+- Production-ready security & UX
+- Beautiful, modern, responsive UI
+- Fully tested API with Postman collection
+- Works in 5 seconds
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Quick Start
 
-## Learn More
+```bash
+# Backend
+cd backend && npm install && npm run dev
 
-To learn more about Next.js, take a look at the following resources:
+# Frontend
+cd frontend && npm install && npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Visit: http://localhost:3000
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Upcoming Features
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Kanban Task Board (Drag & Drop)
+- Real-time Comments (Socket.io)
+- File Uploads (S3 Presigned URLs)
+- Dark Mode Toggle
+- Mobile PWA
+- Production Deployment (Vercel + Render)

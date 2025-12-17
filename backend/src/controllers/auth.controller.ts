@@ -142,6 +142,7 @@ export const register = async (req: Request, res: Response) => {
 
 // login user and set tokens in cookies
 export const login = async (req: Request, res: Response) => {
+  console.log("Login attempt:", req.body);
   try {
     const { email, password } = z
       .object({
@@ -262,6 +263,48 @@ export const refresh = async (req: Request, res: Response) => {
     res.status(401).json({ message: "Invalid refresh token" });
   }
 };
+
+// get current user info
+export const me = async (req: Request, res: Response) => {
+  try {
+    // 👇 Provided by protect middleware
+    const { userId, orgId } = req.user as {
+      userId: string;
+      orgId: string;
+      role: string;
+    };
+
+    // 1️⃣ Fetch user (exclude password)
+    const user = await User.findById(userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // 2️⃣ Fetch organization
+    const org = await Organization.findById(orgId);
+    if (!org) {
+      return res.status(404).json({ message: "Organization not found" });
+    }
+
+    // 3️⃣ Respond with clean data
+    res.status(200).json({
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+      },
+      org: {
+        id: org._id,
+        name: org.name,
+        slug: org.slug,
+      },
+    });
+  } catch (error) {
+    console.error("ME CONTROLLER ERROR:", error);
+    res.status(500).json({ message: "Failed to fetch user data" });
+  }
+};
+
 
 // Logout user by clearing cookies
 export const logout = (req: Request, res: Response) => {
