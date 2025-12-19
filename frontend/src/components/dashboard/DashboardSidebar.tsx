@@ -4,14 +4,14 @@
 import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { 
-  LayoutDashboard, 
-  FolderKanban, 
-  CheckSquare, 
-  Users, 
+import {
+  LayoutDashboard,
+  FolderKanban,
+  CheckSquare,
+  Users,
   Settings,
   LogOut,
-  Menu
+  Menu,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -70,10 +70,12 @@ export default function DashboardSidebar() {
             <p className="text-xs text-gray-500">{user?.email}</p>
           </div>
         </div>
-        <Button onClick={logout} variant="outline" className="w-full">
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
-        </Button>
+        <Link href="/login">
+          <Button onClick={logout} variant="outline" className="w-full">
+            <LogOut className="mr-2 h-4 w-4" />
+            Logout
+          </Button>
+        </Link>
       </div>
     </div>
   );
@@ -88,7 +90,11 @@ export default function DashboardSidebar() {
       {/* Mobile Sheet */}
       <Sheet>
         <SheetTrigger asChild>
-          <Button variant="outline" size="icon" className="fixed top-4 left-4 z-50 lg:hidden">
+          <Button
+            variant="outline"
+            size="icon"
+            className="fixed top-4 left-4 z-50 lg:hidden"
+          >
             <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>
