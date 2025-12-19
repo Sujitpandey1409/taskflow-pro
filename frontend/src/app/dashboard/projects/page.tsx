@@ -3,47 +3,90 @@
 
 import { useQuery } from "@tanstack/react-query";
 import api from "@/lib/api";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plus, FolderKanban } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { FolderKanban, Plus } from "lucide-react";
+import CreateProjectDialog from "../../../components/projects/CreateProjectDialog";
+import CreateTaskDialog from "@/components/tasks/CreateTaskDialog";
 
 export default function ProjectsPage() {
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ["projects"],
-    queryFn: () => api.get("/projects").then(res => res.data.projects),
+    queryFn: () => api.get("/projects").then(res => res.data.projects || []),
   });
 
   if (isLoading) {
-    return <div className="text-center py-20">Loading projects...</div>;
+    return <div className="text-center py-32 text-gray-500">Loading your projects...</div>;
   }
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Projects</h1>
-        <Button size="lg">
-          <Plus className="mr-2 h-5 w-5" />
-          New Project
-        </Button>
+      {/* Header */}
+      <div className="mb-10">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-900">Projects</h1>
+            <p className="text-lg text-gray-600 mt-2">
+              Manage all your work in one place
+            </p>
+          </div>
+
+          {/* Action Buttons — Beautifully Aligned */}
+          <div className="flex gap-3">
+            <CreateTaskDialog />
+            <CreateProjectDialog />
+          </div>
+        </div>
       </div>
 
+      {/* Empty State — Stunning */}
       {projects.length === 0 ? (
-        <div className="text-center py-20">
-          <FolderKanban className="mx-auto h-24 w-24 text-gray-300 mb-6" />
-          <h2 className="text-2xl font-semibold text-gray-700 mb-2">No projects yet</h2>
-          <p className="text-gray-500">Create your first project to get started</p>
+        <div className="text-center py-32">
+          <div className="inline-flex items-center justify-center w-32 h-32 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full mb-8">
+            <FolderKanban className="h-16 w-16 text-indigo-600" />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-800 mb-4">No projects yet</h2>
+          <p className="text-xl text-gray-600 max-w-md mx-auto">
+            Get started by creating your first project. This is where all the magic begins.
+          </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        /* Projects Grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {projects.map((project: any) => (
-            <Card key={project._id} className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
-              <h3 className="text-xl font-semibold mb-2">{project.name}</h3>
-              <p className="text-gray-600">{project.description || "No description"}</p>
-              <div className="mt-4 flex items-center justify-between">
-                <span className="text-sm text-gray-500">0 tasks</span>
-                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                  Active
-                </span>
+            <Card
+              key={project._id}
+              className="group relative overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer border-0 bg-white"
+            >
+              {/* Gradient Top Bar */}
+              <div className="h-2 bg-gradient-to-r from-indigo-500 to-purple-600" />
+
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <h3 className="text-xl font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
+                    {project.name}
+                  </h3>
+                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <FolderKanban className="h-5 w-5 text-white" />
+                  </div>
+                </div>
+
+                <p className="text-gray-600 text-sm line-clamp-2 mb-6">
+                  {project.description || "No description added"}
+                </p>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    <span className="text-sm font-medium text-green-600">Active</span>
+                  </div>
+                  <span className="text-sm text-gray-500">0 tasks</span>
+                </div>
+              </div>
+
+              {/* Hover Overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
+                <p className="text-white font-medium">Click to open →</p>
               </div>
             </Card>
           ))}
