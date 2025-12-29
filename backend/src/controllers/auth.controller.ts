@@ -88,7 +88,6 @@ export const register = async (req: Request, res: Response) => {
     tenantConn = await connectTenantDB(dbName);
 
     // 8. === SAFELY REGISTER ONLY EXISTING MODELS ===
-    
 
     // 9. Set current org and add membership
     await User.findByIdAndUpdate(user._id, {
@@ -101,18 +100,22 @@ export const register = async (req: Request, res: Response) => {
     const refreshToken = generateRefreshToken(user._id);
 
     // 11. Set HttpOnly Cookies
+    const isProd = process.env.NODE_ENV === "production";
+
     res.cookie("access_token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProd, // REQUIRED for SameSite=None
+      sameSite: isProd ? "none" : "lax",
       maxAge: 15 * 60 * 1000,
+      path: "/",
     });
 
     res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/",
     });
 
     // 12. Success
@@ -180,18 +183,22 @@ export const login = async (req: Request, res: Response) => {
     const refreshToken = generateRefreshToken(user._id);
 
     // Set cookies
+    const isProd = process.env.NODE_ENV === "production";
+
     res.cookie("access_token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProd, // REQUIRED for SameSite=None
+      sameSite: isProd ? "none" : "lax",
       maxAge: 15 * 60 * 1000,
+      path: "/",
     });
 
     res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: "/",
     });
 
     // process any pending invites
@@ -241,28 +248,40 @@ export const refresh = async (req: Request, res: Response) => {
       refreshToken,
       process.env.JWT_REFRESH_SECRET!
     );
+
     const user = await User.findById(decoded.userId);
     if (!user || !user.currentOrgId) {
       return res.status(401).json({ message: "Invalid refresh token" });
     }
 
     const org = await Organization.findById(user.currentOrgId);
-    if (!org) return res.status(401).json({ message: "Org not found" });
+    if (!org) {
+      return res.status(401).json({ message: "Org not found" });
+    }
 
-    const newAccessToken = generateAccessToken(user._id, org._id, "OWNER");
+    const newAccessToken = generateAccessToken(
+      user._id,
+      org._id,
+      "OWNER"
+    );
+
+    const isProd = process.env.NODE_ENV === "production";
 
     res.cookie("access_token", newAccessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
+      secure: isProd,                 // REQUIRED
+      sameSite: isProd ? "none" : "lax",
       maxAge: 15 * 60 * 1000,
+      path: "/",
     });
 
-    res.json({ message: "Token refreshed" });
+    return res.json({ message: "Token refreshed" });
+
   } catch (err) {
-    res.status(401).json({ message: "Invalid refresh token" });
+    return res.status(401).json({ message: "Invalid refresh token" });
   }
 };
+
 
 // get current user info
 export const me = async (req: Request, res: Response) => {
@@ -304,7 +323,6 @@ export const me = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to fetch user data" });
   }
 };
-
 
 // Logout user by clearing cookies
 export const logout = (req: Request, res: Response) => {

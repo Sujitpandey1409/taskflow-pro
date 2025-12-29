@@ -82,17 +82,20 @@ const register = async (req, res) => {
         const accessToken = (0, generateTokens_1.generateAccessToken)(user._id, org._id, "OWNER");
         const refreshToken = (0, generateTokens_1.generateRefreshToken)(user._id);
         // 11. Set HttpOnly Cookies
+        const isProd = process.env.NODE_ENV === "production";
         res.cookie("access_token", accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            secure: isProd, // REQUIRED for SameSite=None
+            sameSite: isProd ? "none" : "lax",
             maxAge: 15 * 60 * 1000,
+            path: "/",
         });
         res.cookie("refresh_token", refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            secure: isProd,
+            sameSite: isProd ? "none" : "lax",
             maxAge: 7 * 24 * 60 * 60 * 1000,
+            path: "/",
         });
         // 12. Success
         res.status(201).json({
@@ -151,17 +154,20 @@ const login = async (req, res) => {
         const accessToken = (0, generateTokens_1.generateAccessToken)(user._id, org._id, "OWNER"); // Role from org later
         const refreshToken = (0, generateTokens_1.generateRefreshToken)(user._id);
         // Set cookies
+        const isProd = process.env.NODE_ENV === "production";
         res.cookie("access_token", accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            secure: isProd, // REQUIRED for SameSite=None
+            sameSite: isProd ? "none" : "lax",
             maxAge: 15 * 60 * 1000,
+            path: "/",
         });
         res.cookie("refresh_token", refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            secure: isProd,
+            sameSite: isProd ? "none" : "lax",
             maxAge: 7 * 24 * 60 * 60 * 1000,
+            path: "/",
         });
         // process any pending invites
         const pendingInvites = await OrganizationMember_1.OrganizationMember.find({
@@ -207,19 +213,22 @@ const refresh = async (req, res) => {
             return res.status(401).json({ message: "Invalid refresh token" });
         }
         const org = await Organization_1.Organization.findById(user.currentOrgId);
-        if (!org)
+        if (!org) {
             return res.status(401).json({ message: "Org not found" });
+        }
         const newAccessToken = (0, generateTokens_1.generateAccessToken)(user._id, org._id, "OWNER");
+        const isProd = process.env.NODE_ENV === "production";
         res.cookie("access_token", newAccessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === "production",
-            sameSite: "strict",
+            secure: isProd, // REQUIRED
+            sameSite: isProd ? "none" : "lax",
             maxAge: 15 * 60 * 1000,
+            path: "/",
         });
-        res.json({ message: "Token refreshed" });
+        return res.json({ message: "Token refreshed" });
     }
     catch (err) {
-        res.status(401).json({ message: "Invalid refresh token" });
+        return res.status(401).json({ message: "Invalid refresh token" });
     }
 };
 exports.refresh = refresh;
