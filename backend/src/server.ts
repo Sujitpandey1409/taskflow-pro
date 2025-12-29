@@ -10,7 +10,15 @@ import taskRoutes from './routes/task.routes';
 
 const app = express();
 
-app.use(cors({ origin: 'https://taskflow-pro-sujit.vercel.app', credentials: true }));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "https://your-frontend.vercel.app"
+    ],
+    credentials: true
+  })
+);
 app.use(express.json());
 app.use(cookieParser());
 app.use('/api/auth', authRoutes);
