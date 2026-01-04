@@ -1,4 +1,4 @@
-// src/controllers/auth.controller.ts (FIXED VERSION)
+// src/controllers/auth.controller.ts
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { User, IUser } from "../models/global/User";
@@ -10,8 +10,6 @@ import {
   generateRefreshToken,
 } from "../utils/generateTokens";
 import { z } from "zod";
-import path from "path";
-import fs from "fs";
 import jwt from "jsonwebtoken";
 
 // === Zod Validation ===
@@ -22,16 +20,21 @@ const registerSchema = z.object({
   orgName: z.string().min(2),
 });
 
-// Helper: Safely load model schema
-const loadModelSchema = (modelName: string) => {
-  const filePath = path.join(__dirname, `../models/tenant/${modelName}.ts`);
-  if (fs.existsSync(filePath)) {
-    return (
-      require(`../models/tenant/${modelName}`).TaskSchema ||
-      require(`../models/tenant/${modelName}`).default
-    );
-  }
-  return null;
+// 🔥 IMPROVED: Cookie configuration helper
+const getCookieConfig = (maxAge: number) => {
+  const isProd = process.env.NODE_ENV === "production";
+  
+  return {
+    httpOnly: true,
+    secure: true, // ALWAYS true in production (required for SameSite=None)
+    sameSite: isProd ? ("none" as const) : ("lax" as const),
+    maxAge,
+    path: "/",
+    // 🔥 NEW: Explicitly set domain for cross-origin
+    ...(isProd && process.env.COOKIE_DOMAIN && {
+      domain: process.env.COOKIE_DOMAIN, // e.g., ".yourdomain.com"
+    }),
+  };
 };
 
 export const register = async (req: Request, res: Response) => {
@@ -87,38 +90,21 @@ export const register = async (req: Request, res: Response) => {
     // 7. Create Tenant DB
     tenantConn = await connectTenantDB(dbName);
 
-    // 8. === SAFELY REGISTER ONLY EXISTING MODELS ===
-
-    // 9. Set current org and add membership
+    // 8. Set current org and add membership
     await User.findByIdAndUpdate(user._id, {
       currentOrgId: org._id,
       memberships: [{ orgId: org._id, role: "OWNER", status: "ACCEPTED" }],
     });
 
-    // 10. Generate Tokens
+    // 9. Generate Tokens
     const accessToken = generateAccessToken(user._id, org._id, "OWNER");
     const refreshToken = generateRefreshToken(user._id);
 
-    // 11. Set HttpOnly Cookies
-    const isProd = process.env.NODE_ENV === "production";
+    // 10. 🔥 IMPROVED: Set HttpOnly Cookies with proper config
+    res.cookie("access_token", accessToken, getCookieConfig(15 * 60 * 1000));
+    res.cookie("refresh_token", refreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000));
 
-    res.cookie("access_token", accessToken, {
-      httpOnly: true,
-      secure: isProd, // REQUIRED for SameSite=None
-      sameSite: isProd ? "none" : "lax",
-      maxAge: 15 * 60 * 1000,
-      path: "/",
-    });
-
-    res.cookie("refresh_token", refreshToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/",
-    });
-
-    // 12. Success
+    // 11. Success
     res.status(201).json({
       message: "User & organization created successfully",
       user: { id: user._id, name, email },
@@ -143,7 +129,7 @@ export const register = async (req: Request, res: Response) => {
   }
 };
 
-// login user and set tokens in cookies
+// 🔥 IMPROVED: Login with better cookie handling
 export const login = async (req: Request, res: Response) => {
   console.log("Login attempt:", req.body);
   try {
@@ -179,29 +165,14 @@ export const login = async (req: Request, res: Response) => {
     }
 
     // Generate tokens
-    const accessToken = generateAccessToken(user._id, org._id, "OWNER"); // Role from org later
+    const accessToken = generateAccessToken(user._id, org._id, "OWNER");
     const refreshToken = generateRefreshToken(user._id);
 
-    // Set cookies
-    const isProd = process.env.NODE_ENV === "production";
+    // 🔥 IMPROVED: Set cookies with proper config
+    res.cookie("access_token", accessToken, getCookieConfig(15 * 60 * 1000));
+    res.cookie("refresh_token", refreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000));
 
-    res.cookie("access_token", accessToken, {
-      httpOnly: true,
-      secure: isProd, // REQUIRED for SameSite=None
-      sameSite: isProd ? "none" : "lax",
-      maxAge: 15 * 60 * 1000,
-      path: "/",
-    });
-
-    res.cookie("refresh_token", refreshToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: isProd ? "none" : "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: "/",
-    });
-
-    // process any pending invites
+    // Process any pending invites
     const pendingInvites = await OrganizationMember.find({
       userId: user._id,
       status: "PENDING",
@@ -231,11 +202,12 @@ export const login = async (req: Request, res: Response) => {
       org: { id: org._id, name: org.name, slug: org.slug },
     });
   } catch (err: any) {
+    console.error("Login error:", err);
     res.status(500).json({ message: err.message });
   }
 };
 
-// if refresh token is valid, issue new access token
+// 🔥 IMPROVED: Refresh with better cookie handling
 export const refresh = async (req: Request, res: Response) => {
   const refreshToken = req.cookies.refresh_token;
 
@@ -259,53 +231,40 @@ export const refresh = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Org not found" });
     }
 
-    const newAccessToken = generateAccessToken(
-      user._id,
-      org._id,
-      "OWNER"
-    );
+    const newAccessToken = generateAccessToken(user._id, org._id, "OWNER");
 
-    const isProd = process.env.NODE_ENV === "production";
-
-    res.cookie("access_token", newAccessToken, {
-      httpOnly: true,
-      secure: isProd,                 // REQUIRED
-      sameSite: isProd ? "none" : "lax",
-      maxAge: 15 * 60 * 1000,
-      path: "/",
-    });
+    // 🔥 IMPROVED: Set cookie with proper config
+    res.cookie("access_token", newAccessToken, getCookieConfig(15 * 60 * 1000));
 
     return res.json({ message: "Token refreshed" });
-
   } catch (err) {
+    console.error("Refresh error:", err);
     return res.status(401).json({ message: "Invalid refresh token" });
   }
 };
 
-
-// get current user info
+// Get current user info
 export const me = async (req: Request, res: Response) => {
   try {
-    // 👇 Provided by protect middleware
     const { userId, orgId } = req.user as {
       userId: string;
       orgId: string;
       role: string;
     };
 
-    // 1️⃣ Fetch user (exclude password)
+    // Fetch user (exclude password)
     const user = await User.findById(userId).select("-password");
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // 2️⃣ Fetch organization
+    // Fetch organization
     const org = await Organization.findById(orgId);
     if (!org) {
       return res.status(404).json({ message: "Organization not found" });
     }
 
-    // 3️⃣ Respond with clean data
+    // Respond with clean data
     res.status(200).json({
       user: {
         id: user._id,
@@ -326,7 +285,21 @@ export const me = async (req: Request, res: Response) => {
 
 // Logout user by clearing cookies
 export const logout = (req: Request, res: Response) => {
-  res.clearCookie("access_token");
-  res.clearCookie("refresh_token");
+  // 🔥 IMPROVED: Clear cookies with same config
+  const isProd = process.env.NODE_ENV === "production";
+  
+  const clearConfig = {
+    httpOnly: true,
+    secure: true,
+    sameSite: isProd ? ("none" as const) : ("lax" as const),
+    path: "/",
+    ...(isProd && process.env.COOKIE_DOMAIN && {
+      domain: process.env.COOKIE_DOMAIN,
+    }),
+  };
+
+  res.clearCookie("access_token", clearConfig);
+  res.clearCookie("refresh_token", clearConfig);
+  
   res.json({ message: "Logged out" });
 };
