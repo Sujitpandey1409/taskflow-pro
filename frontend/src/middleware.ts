@@ -10,7 +10,12 @@ export function middleware(req: NextRequest) {
 
   // 🔒 Not logged in → block dashboard
   if (!accessToken && isDashboardRoute) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    const url = new URL("/login", req.url);
+    // Add redirect param to help with debugging
+    console.log("Redirecting to login from dashboard, no access token found.");
+    // alert("Redirecting to login from dashboard, no access token found.");
+    url.searchParams.set("redirected", "true");
+    return NextResponse.redirect(url);
   }
 
   // 🚫 Logged in → block auth pages
@@ -18,6 +23,7 @@ export function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
+  // ✅ Allow the request to continue
   return NextResponse.next();
 }
 

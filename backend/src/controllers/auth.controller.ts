@@ -29,6 +29,7 @@ const setCookie = (res: Response, name: string, value: string, maxAge: number) =
     httpOnly: true,
     secure: true, // ALWAYS true for production
     sameSite: isProd ? "none" : "lax",
+    domain: ".vercel.app", // Adjust domain as needed
     maxAge: maxAge,
     path: "/",
   });
