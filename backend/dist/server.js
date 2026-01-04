@@ -29,6 +29,19 @@ app.use('/api/tasks', task_routes_1.default);
 app.get('/health', (req, res) => {
     res.json({ status: 'OK', mongo: 'connected', timestamp: new Date().toISOString() });
 });
+// Debug route to inspect cookies and headers
+app.get('/api/debug/cookies', (req, res) => {
+    res.json({
+        cookies: req.cookies,
+        signedCookies: req.signedCookies,
+        headers: {
+            origin: req.headers.origin,
+            referer: req.headers.referer,
+            authorization: req.headers.authorization ? 'Present' : 'Missing',
+        },
+        cookieHeader: req.headers.cookie,
+    });
+});
 // Start server
 const start = async () => {
     try {

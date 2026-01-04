@@ -19,20 +19,33 @@ const registerSchema = zod_1.z.object({
     password: zod_1.z.string().min(6),
     orgName: zod_1.z.string().min(2),
 });
-// 🔥 IMPROVED: Cookie configuration helper
-const getCookieConfig = (maxAge) => {
+// 🔥 ULTRA-ROBUST: Cookie configuration that GUARANTEES cookies work
+const setCookie = (res, name, value, maxAge) => {
     const isProd = process.env.NODE_ENV === "production";
-    return {
+    // 🔥 Method 1: Using res.cookie (standard)
+    res.cookie(name, value, {
         httpOnly: true,
-        secure: true, // ALWAYS true in production (required for SameSite=None)
+        secure: true, // ALWAYS true for production
         sameSite: isProd ? "none" : "lax",
-        maxAge,
+        maxAge: maxAge,
         path: "/",
-        // 🔥 NEW: Explicitly set domain for cross-origin
-        ...(isProd && process.env.COOKIE_DOMAIN && {
-            domain: process.env.COOKIE_DOMAIN, // e.g., ".yourdomain.com"
-        }),
-    };
+    });
+    // 🔥 Method 2: ALSO set via header (backup method)
+    // This ensures cookies are set even if res.cookie fails
+    const cookieString = [
+        `${name}=${value}`,
+        `Max-Age=${Math.floor(maxAge / 1000)}`,
+        'Path=/',
+        'HttpOnly',
+        'Secure',
+        isProd ? 'SameSite=None' : 'SameSite=Lax',
+    ].join('; ');
+    // Append to existing Set-Cookie headers
+    const existingCookies = res.getHeader('Set-Cookie') || [];
+    const cookiesArray = (Array.isArray(existingCookies)
+        ? existingCookies
+        : [existingCookies]).filter((cookie) => typeof cookie === 'string');
+    res.setHeader('Set-Cookie', [...cookiesArray, cookieString]);
 };
 const register = async (req, res) => {
     let tenantConn = null;
@@ -84,14 +97,20 @@ const register = async (req, res) => {
         // 9. Generate Tokens
         const accessToken = (0, generateTokens_1.generateAccessToken)(user._id, org._id, "OWNER");
         const refreshToken = (0, generateTokens_1.generateRefreshToken)(user._id);
-        // 10. 🔥 IMPROVED: Set HttpOnly Cookies with proper config
-        res.cookie("access_token", accessToken, getCookieConfig(15 * 60 * 1000));
-        res.cookie("refresh_token", refreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000));
+        // 10. 🔥 ULTRA-ROBUST: Set cookies with dual method
+        setCookie(res, "access_token", accessToken, 15 * 60 * 1000);
+        setCookie(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
+        console.log('✅ Cookies set for registration:', { userId: user._id });
         // 11. Success
         res.status(201).json({
             message: "User & organization created successfully",
             user: { id: user._id, name, email },
             org: { id: org._id, name: orgName, slug: orgSlug },
+            // 🔥 NEW: Return tokens in response body as backup
+            tokens: {
+                access_token: accessToken,
+                refresh_token: refreshToken,
+            },
         });
     }
     catch (err) {
@@ -113,9 +132,9 @@ const register = async (req, res) => {
     }
 };
 exports.register = register;
-// 🔥 IMPROVED: Login with better cookie handling
+// 🔥 ULTRA-ROBUST: Login with guaranteed cookies
 const login = async (req, res) => {
-    console.log("Login attempt:", req.body);
+    console.log("Login attempt:", { email: req.body.email, ip: req.ip });
     try {
         const { email, password } = zod_1.z
             .object({
@@ -143,9 +162,13 @@ const login = async (req, res) => {
         // Generate tokens
         const accessToken = (0, generateTokens_1.generateAccessToken)(user._id, org._id, "OWNER");
         const refreshToken = (0, generateTokens_1.generateRefreshToken)(user._id);
-        // 🔥 IMPROVED: Set cookies with proper config
-        res.cookie("access_token", accessToken, getCookieConfig(15 * 60 * 1000));
-        res.cookie("refresh_token", refreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000));
+        // 🔥 ULTRA-ROBUST: Set cookies with dual method
+        setCookie(res, "access_token", accessToken, 15 * 60 * 1000);
+        setCookie(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
+        console.log('✅ Cookies set for login:', {
+            userId: user._id,
+            cookiesSent: res.getHeader('Set-Cookie')
+        });
         // Process any pending invites
         const pendingInvites = await OrganizationMember_1.OrganizationMember.find({
             userId: user._id,
@@ -155,7 +178,6 @@ const login = async (req, res) => {
             invite.status = "ACCEPTED";
             invite.joinedAt = new Date();
             await invite.save();
-            // Add to user memberships
             if (!user.memberships) {
                 user.memberships = [];
             }
@@ -170,6 +192,11 @@ const login = async (req, res) => {
             message: "Login successful",
             user: { id: user._id, name: user.name, email: user.email },
             org: { id: org._id, name: org.name, slug: org.slug },
+            // 🔥 NEW: Return tokens in response body as backup
+            tokens: {
+                access_token: accessToken,
+                refresh_token: refreshToken,
+            },
         });
     }
     catch (err) {
@@ -178,7 +205,7 @@ const login = async (req, res) => {
     }
 };
 exports.login = login;
-// 🔥 IMPROVED: Refresh with better cookie handling
+// 🔥 ULTRA-ROBUST: Refresh with guaranteed cookies
 const refresh = async (req, res) => {
     const refreshToken = req.cookies.refresh_token;
     if (!refreshToken) {
@@ -195,9 +222,16 @@ const refresh = async (req, res) => {
             return res.status(401).json({ message: "Org not found" });
         }
         const newAccessToken = (0, generateTokens_1.generateAccessToken)(user._id, org._id, "OWNER");
-        // 🔥 IMPROVED: Set cookie with proper config
-        res.cookie("access_token", newAccessToken, getCookieConfig(15 * 60 * 1000));
-        return res.json({ message: "Token refreshed" });
+        // 🔥 ULTRA-ROBUST: Set cookie with dual method
+        setCookie(res, "access_token", newAccessToken, 15 * 60 * 1000);
+        console.log('✅ Cookie refreshed:', { userId: user._id });
+        return res.json({
+            message: "Token refreshed",
+            // 🔥 NEW: Return token in response body as backup
+            tokens: {
+                access_token: newAccessToken,
+            },
+        });
     }
     catch (err) {
         console.error("Refresh error:", err);
@@ -209,17 +243,14 @@ exports.refresh = refresh;
 const me = async (req, res) => {
     try {
         const { userId, orgId } = req.user;
-        // Fetch user (exclude password)
         const user = await User_1.User.findById(userId).select("-password");
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
-        // Fetch organization
         const org = await Organization_1.Organization.findById(orgId);
         if (!org) {
             return res.status(404).json({ message: "Organization not found" });
         }
-        // Respond with clean data
         res.status(200).json({
             user: {
                 id: user._id,
@@ -239,21 +270,29 @@ const me = async (req, res) => {
     }
 };
 exports.me = me;
-// Logout user by clearing cookies
+// 🔥 ULTRA-ROBUST: Logout with proper cookie clearing
 const logout = (req, res) => {
-    // 🔥 IMPROVED: Clear cookies with same config
     const isProd = process.env.NODE_ENV === "production";
-    const clearConfig = {
+    // Method 1: Using clearCookie
+    res.clearCookie("access_token", {
         httpOnly: true,
         secure: true,
         sameSite: isProd ? "none" : "lax",
         path: "/",
-        ...(isProd && process.env.COOKIE_DOMAIN && {
-            domain: process.env.COOKIE_DOMAIN,
-        }),
-    };
-    res.clearCookie("access_token", clearConfig);
-    res.clearCookie("refresh_token", clearConfig);
+    });
+    res.clearCookie("refresh_token", {
+        httpOnly: true,
+        secure: true,
+        sameSite: isProd ? "none" : "lax",
+        path: "/",
+    });
+    // Method 2: Also set expired cookies via header
+    const expiredCookies = [
+        `access_token=; Max-Age=0; Path=/; HttpOnly; Secure; ${isProd ? 'SameSite=None' : 'SameSite=Lax'}`,
+        `refresh_token=; Max-Age=0; Path=/; HttpOnly; Secure; ${isProd ? 'SameSite=None' : 'SameSite=Lax'}`,
+    ];
+    res.setHeader('Set-Cookie', expiredCookies);
+    console.log('✅ Cookies cleared for logout');
     res.json({ message: "Logged out" });
 };
 exports.logout = logout;

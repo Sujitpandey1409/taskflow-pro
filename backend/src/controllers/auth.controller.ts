@@ -46,9 +46,9 @@ const setCookie = (res: Response, name: string, value: string, maxAge: number) =
 
   // Append to existing Set-Cookie headers
   const existingCookies = res.getHeader('Set-Cookie') || [];
-  const cookiesArray = Array.isArray(existingCookies) 
+  const cookiesArray = (Array.isArray(existingCookies) 
     ? existingCookies 
-    : [existingCookies];
+    : [existingCookies]).filter((cookie): cookie is string => typeof cookie === 'string');
   
   res.setHeader('Set-Cookie', [...cookiesArray, cookieString]);
 };
