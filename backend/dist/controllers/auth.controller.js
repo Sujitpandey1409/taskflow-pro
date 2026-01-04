@@ -11,8 +11,6 @@ const OrganizationMember_1 = require("../models/global/OrganizationMember");
 const db_1 = require("../config/db");
 const generateTokens_1 = require("../utils/generateTokens");
 const zod_1 = require("zod");
-const path_1 = __importDefault(require("path"));
-const fs_1 = __importDefault(require("fs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 // === Zod Validation ===
 const registerSchema = zod_1.z.object({
@@ -21,14 +19,20 @@ const registerSchema = zod_1.z.object({
     password: zod_1.z.string().min(6),
     orgName: zod_1.z.string().min(2),
 });
-// Helper: Safely load model schema
-const loadModelSchema = (modelName) => {
-    const filePath = path_1.default.join(__dirname, `../models/tenant/${modelName}.ts`);
-    if (fs_1.default.existsSync(filePath)) {
-        return (require(`../models/tenant/${modelName}`).TaskSchema ||
-            require(`../models/tenant/${modelName}`).default);
-    }
-    return null;
+// 🔥 IMPROVED: Cookie configuration helper
+const getCookieConfig = (maxAge) => {
+    const isProd = process.env.NODE_ENV === "production";
+    return {
+        httpOnly: true,
+        secure: true, // ALWAYS true in production (required for SameSite=None)
+        sameSite: isProd ? "none" : "lax",
+        maxAge,
+        path: "/",
+        // 🔥 NEW: Explicitly set domain for cross-origin
+        ...(isProd && process.env.COOKIE_DOMAIN && {
+            domain: process.env.COOKIE_DOMAIN, // e.g., ".yourdomain.com"
+        }),
+    };
 };
 const register = async (req, res) => {
     let tenantConn = null;
@@ -72,32 +76,18 @@ const register = async (req, res) => {
         });
         // 7. Create Tenant DB
         tenantConn = await (0, db_1.connectTenantDB)(dbName);
-        // 8. === SAFELY REGISTER ONLY EXISTING MODELS ===
-        // 9. Set current org and add membership
+        // 8. Set current org and add membership
         await User_1.User.findByIdAndUpdate(user._id, {
             currentOrgId: org._id,
             memberships: [{ orgId: org._id, role: "OWNER", status: "ACCEPTED" }],
         });
-        // 10. Generate Tokens
+        // 9. Generate Tokens
         const accessToken = (0, generateTokens_1.generateAccessToken)(user._id, org._id, "OWNER");
         const refreshToken = (0, generateTokens_1.generateRefreshToken)(user._id);
-        // 11. Set HttpOnly Cookies
-        const isProd = process.env.NODE_ENV === "production";
-        res.cookie("access_token", accessToken, {
-            httpOnly: true,
-            secure: isProd, // REQUIRED for SameSite=None
-            sameSite: isProd ? "none" : "lax",
-            maxAge: 15 * 60 * 1000,
-            path: "/",
-        });
-        res.cookie("refresh_token", refreshToken, {
-            httpOnly: true,
-            secure: isProd,
-            sameSite: isProd ? "none" : "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            path: "/",
-        });
-        // 12. Success
+        // 10. 🔥 IMPROVED: Set HttpOnly Cookies with proper config
+        res.cookie("access_token", accessToken, getCookieConfig(15 * 60 * 1000));
+        res.cookie("refresh_token", refreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000));
+        // 11. Success
         res.status(201).json({
             message: "User & organization created successfully",
             user: { id: user._id, name, email },
@@ -123,7 +113,7 @@ const register = async (req, res) => {
     }
 };
 exports.register = register;
-// login user and set tokens in cookies
+// 🔥 IMPROVED: Login with better cookie handling
 const login = async (req, res) => {
     console.log("Login attempt:", req.body);
     try {
@@ -151,25 +141,12 @@ const login = async (req, res) => {
             return res.status(400).json({ message: "Organization not found" });
         }
         // Generate tokens
-        const accessToken = (0, generateTokens_1.generateAccessToken)(user._id, org._id, "OWNER"); // Role from org later
+        const accessToken = (0, generateTokens_1.generateAccessToken)(user._id, org._id, "OWNER");
         const refreshToken = (0, generateTokens_1.generateRefreshToken)(user._id);
-        // Set cookies
-        const isProd = process.env.NODE_ENV === "production";
-        res.cookie("access_token", accessToken, {
-            httpOnly: true,
-            secure: isProd, // REQUIRED for SameSite=None
-            sameSite: isProd ? "none" : "lax",
-            maxAge: 15 * 60 * 1000,
-            path: "/",
-        });
-        res.cookie("refresh_token", refreshToken, {
-            httpOnly: true,
-            secure: isProd,
-            sameSite: isProd ? "none" : "lax",
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            path: "/",
-        });
-        // process any pending invites
+        // 🔥 IMPROVED: Set cookies with proper config
+        res.cookie("access_token", accessToken, getCookieConfig(15 * 60 * 1000));
+        res.cookie("refresh_token", refreshToken, getCookieConfig(7 * 24 * 60 * 60 * 1000));
+        // Process any pending invites
         const pendingInvites = await OrganizationMember_1.OrganizationMember.find({
             userId: user._id,
             status: "PENDING",
@@ -196,11 +173,12 @@ const login = async (req, res) => {
         });
     }
     catch (err) {
+        console.error("Login error:", err);
         res.status(500).json({ message: err.message });
     }
 };
 exports.login = login;
-// if refresh token is valid, issue new access token
+// 🔥 IMPROVED: Refresh with better cookie handling
 const refresh = async (req, res) => {
     const refreshToken = req.cookies.refresh_token;
     if (!refreshToken) {
@@ -217,37 +195,31 @@ const refresh = async (req, res) => {
             return res.status(401).json({ message: "Org not found" });
         }
         const newAccessToken = (0, generateTokens_1.generateAccessToken)(user._id, org._id, "OWNER");
-        const isProd = process.env.NODE_ENV === "production";
-        res.cookie("access_token", newAccessToken, {
-            httpOnly: true,
-            secure: isProd, // REQUIRED
-            sameSite: isProd ? "none" : "lax",
-            maxAge: 15 * 60 * 1000,
-            path: "/",
-        });
+        // 🔥 IMPROVED: Set cookie with proper config
+        res.cookie("access_token", newAccessToken, getCookieConfig(15 * 60 * 1000));
         return res.json({ message: "Token refreshed" });
     }
     catch (err) {
+        console.error("Refresh error:", err);
         return res.status(401).json({ message: "Invalid refresh token" });
     }
 };
 exports.refresh = refresh;
-// get current user info
+// Get current user info
 const me = async (req, res) => {
     try {
-        // 👇 Provided by protect middleware
         const { userId, orgId } = req.user;
-        // 1️⃣ Fetch user (exclude password)
+        // Fetch user (exclude password)
         const user = await User_1.User.findById(userId).select("-password");
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
-        // 2️⃣ Fetch organization
+        // Fetch organization
         const org = await Organization_1.Organization.findById(orgId);
         if (!org) {
             return res.status(404).json({ message: "Organization not found" });
         }
-        // 3️⃣ Respond with clean data
+        // Respond with clean data
         res.status(200).json({
             user: {
                 id: user._id,
@@ -269,8 +241,19 @@ const me = async (req, res) => {
 exports.me = me;
 // Logout user by clearing cookies
 const logout = (req, res) => {
-    res.clearCookie("access_token");
-    res.clearCookie("refresh_token");
+    // 🔥 IMPROVED: Clear cookies with same config
+    const isProd = process.env.NODE_ENV === "production";
+    const clearConfig = {
+        httpOnly: true,
+        secure: true,
+        sameSite: isProd ? "none" : "lax",
+        path: "/",
+        ...(isProd && process.env.COOKIE_DOMAIN && {
+            domain: process.env.COOKIE_DOMAIN,
+        }),
+    };
+    res.clearCookie("access_token", clearConfig);
+    res.clearCookie("refresh_token", clearConfig);
     res.json({ message: "Logged out" });
 };
 exports.logout = logout;
