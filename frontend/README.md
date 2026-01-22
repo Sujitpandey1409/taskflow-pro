@@ -3,7 +3,7 @@
 **Full-Stack MERN + Next.js 14 App Router | Production-Grade | Real Multi-Tenancy**
 
 - **Live Demo:** [https://taskflow-pro.vercel.app](https://taskflow-pro.vercel.app) (coming after deploy)
-- **Backend Repo:** [github.com/yourname/https://github.com/Sujitpandey1409/taskflow-pro](...)
+- **Backend Repo:** [https://github.com/Sujitpandey1409/taskflow-pro](...)
 
 ![TaskFlow Pro Dashboard](screenshots/dashboard.png)
 ![Projects Page](screenshots/projects.png)
