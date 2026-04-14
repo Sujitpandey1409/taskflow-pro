@@ -3,21 +3,36 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/sonner';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from "@/store/authStore";
-import { useEffect } from 'react';
+import { usePathname } from "next/navigation";
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 60 * 1000, // 1 minute
+        retry: 1,
+      },
+    },
+  }));
+  
   const fetchMe = useAuthStore((state) => state.fetchMe);
+  const pathname = usePathname();
+  
+  // 🔥 Only fetch on mount and when NOT on auth pages
   useEffect(() => {
-    fetchMe();
-  }, [fetchMe]);
+    const isAuthPage = pathname.startsWith('/login') || pathname.startsWith('/register');
+    
+    if (!isAuthPage) {
+      fetchMe();
+    }
+  }, [fetchMe, pathname]);
 
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      <Toaster richColors closeButton />
+      <Toaster richColors closeButton position="top-right" />
     </QueryClientProvider>
   );
 }

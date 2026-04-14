@@ -9,6 +9,8 @@ import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
+import { useEffect } from "react";
+import Link from "next/link";
 
 // 🔹 react-hook-form + zod
 import { useForm } from "react-hook-form";
@@ -16,7 +18,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { registerSchema, RegisterFormData } from "@/validations/auth";
 
 export default function RegisterPage() {
-  const { register: registerUser, isLoading } = useAuthStore();
+  const { register: registerUser, isLoading, isAuthenticated, user } = useAuthStore();
   const router = useRouter();
 
   const {
@@ -27,11 +29,23 @@ export default function RegisterPage() {
     resolver: zodResolver(registerSchema),
   });
 
+  // 🔥 NEW: Redirect after auth state changes
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      // Add small delay to ensure cookies are set
+      const timer = setTimeout(() => {
+        router.push("/dashboard");
+        router.refresh();
+      }, 100);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isAuthenticated, user, router]);
+
   const onSubmit = async (data: RegisterFormData) => {
     try {
       await registerUser(data);
-      toast.success("Registration successful 🎉");
-      router.push("/dashboard");
+      toast.success("Registration successful");
     } catch (err) {
       if (axios.isAxiosError(err)) {
         toast.error(err.response?.data?.message || "Registration failed");
@@ -116,12 +130,12 @@ export default function RegisterPage() {
 
         <p className="text-center mt-6 text-sm text-gray-600">
           Already have an account?{" "}
-          <a
+          <Link
             href="/login"
             className="text-purple-600 font-medium hover:underline"
           >
             Login
-          </a>
+          </Link>
         </p>
       </Card>
     </div>

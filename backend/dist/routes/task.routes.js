@@ -9,4 +9,5 @@ const router = (0, express_1.Router)();
 router.use(auth_middleware_1.protect, tenant_middleware_1.loadTenantDB);
 router.get('/', task_controller_1.getTasks);
 router.post('/', task_controller_1.createTask);
+router.patch('/:id', task_controller_1.updateTaskStatus);
 exports.default = router;

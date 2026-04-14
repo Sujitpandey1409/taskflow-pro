@@ -1,10 +1,14 @@
-// src/components/tasks/CreateTaskDialog.tsx
 "use client";
 
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { CalendarIcon, Plus } from "lucide-react";
+import { toast } from "sonner";
 import api from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import type { Project, Task } from "@/types/domain";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,33 +32,28 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
 import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
-import { toast } from "sonner";
-import { Plus, CalendarIcon, User } from "lucide-react";
-import { cn } from "@/lib/utils";
+
+const priorityOptions: Array<{ label: string; value: Task["priority"] }> = [
+  { label: "Low", value: "LOW" },
+  { label: "Medium", value: "MEDIUM" },
+  { label: "High", value: "HIGH" },
+  { label: "Urgent", value: "URGENT" },
+];
 
 export default function CreateTaskDialog() {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [projectId, setProjectId] = useState("");
-  const [priority, setPriority] = useState<
-    "LOW" | "MEDIUM" | "HIGH" | "URGENT"
-  >("MEDIUM");
+  const [priority, setPriority] = useState<Task["priority"]>("MEDIUM");
   const [dueDate, setDueDate] = useState<Date | undefined>();
   const queryClient = useQueryClient();
 
   const { data: projects = [] } = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => api.get("/projects").then((res) => res.data.projects || []),
+    queryKey: queryKeys.projects,
+    queryFn: () =>
+      api.get<{ projects: Project[] }>("/projects").then((res) => res.data.projects || []),
   });
 
   const mutation = useMutation({
@@ -67,7 +66,7 @@ export default function CreateTaskDialog() {
         dueDate: dueDate?.toISOString(),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
       toast.success("Task created successfully!");
       setOpen(false);
       resetForm();
@@ -123,9 +122,9 @@ export default function CreateTaskDialog() {
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((p: any) => (
-                    <SelectItem key={p._id} value={p._id}>
-                      {p.name}
+                  {projects.map((project) => (
+                    <SelectItem key={project._id} value={project._id}>
+                      {project.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -134,18 +133,16 @@ export default function CreateTaskDialog() {
 
             <div>
               <Label>Priority</Label>
-              <Select
-                value={priority}
-                onValueChange={(v) => setPriority(v as any)}
-              >
+              <Select value={priority} onValueChange={(value: Task["priority"]) => setPriority(value)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="LOW">Low</SelectItem>
-                  <SelectItem value="MEDIUM">Medium</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
-                  <SelectItem value="URGENT">URGENT</SelectItem>
+                  {priorityOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -167,12 +164,7 @@ export default function CreateTaskDialog() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
-                <Calendar
-                  mode="single"
-                  selected={dueDate}
-                  onSelect={setDueDate}
-                  initialFocus
-                />
+                <Calendar mode="single" selected={dueDate} onSelect={setDueDate} initialFocus />
               </PopoverContent>
             </Popover>
           </div>
@@ -181,10 +173,7 @@ export default function CreateTaskDialog() {
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button
-              onClick={() => mutation.mutate()}
-              disabled={!title || !projectId || mutation.isPending}
-            >
+            <Button onClick={() => mutation.mutate()} disabled={!title || !projectId || mutation.isPending}>
               {mutation.isPending ? "Creating..." : "Create Task"}
             </Button>
           </div>

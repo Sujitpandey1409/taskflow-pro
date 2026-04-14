@@ -24,21 +24,30 @@ const navItems = [
   { icon: Settings, label: "Settings", href: "/dashboard/settings" },
 ];
 
-export default function DashboardSidebar() {
-  const { user, currentOrg, logout } = useAuthStore();
-  const pathname = usePathname();
+type SidebarNavContentProps = {
+  currentOrgName?: string;
+  userName?: string;
+  userEmail?: string;
+  pathname: string;
+  onLogout: () => Promise<void>;
+};
 
-  const NavContent = () => (
+function SidebarNavContent({
+  currentOrgName,
+  userName,
+  userEmail,
+  pathname,
+  onLogout,
+}: SidebarNavContentProps) {
+  return (
     <div className="flex flex-col h-full bg-white border-r border-gray-200">
-      {/* Logo */}
       <div className="p-6 border-b border-gray-200">
         <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
           TaskFlow Pro
         </h2>
-        <p className="text-sm text-gray-500 mt-1">{currentOrg?.name}</p>
+        <p className="text-sm text-gray-500 mt-1">{currentOrgName}</p>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 p-4 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
@@ -59,19 +68,18 @@ export default function DashboardSidebar() {
         })}
       </nav>
 
-      {/* User & Logout */}
       <div className="p-4 border-t border-gray-200">
         <div className="flex items-center mb-4">
           <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold">
-            {user?.name.charAt(0)}
+            {userName?.charAt(0) ?? "U"}
           </div>
-          <div className="ml-3">
-            <p className="font-medium text-gray-900">{user?.name}</p>
-            <p className="text-xs text-gray-500">{user?.email}</p>
+          <div className="ml-3 min-w-0">
+            <p className="font-medium text-gray-900 truncate">{userName}</p>
+            <p className="text-xs text-gray-500 truncate">{userEmail}</p>
           </div>
         </div>
         <Link href="/login">
-          <Button onClick={logout} variant="outline" className="w-full">
+          <Button onClick={onLogout} variant="outline" className="w-full">
             <LogOut className="mr-2 h-4 w-4" />
             Logout
           </Button>
@@ -79,15 +87,24 @@ export default function DashboardSidebar() {
       </div>
     </div>
   );
+}
+
+export default function DashboardSidebar() {
+  const { user, currentOrg, logout } = useAuthStore();
+  const pathname = usePathname();
 
   return (
     <>
-      {/* Desktop Sidebar */}
       <div className="hidden lg:flex lg:w-64 lg:flex-col">
-        <NavContent />
+        <SidebarNavContent
+          currentOrgName={currentOrg?.name}
+          userName={user?.name}
+          userEmail={user?.email}
+          pathname={pathname}
+          onLogout={logout}
+        />
       </div>
 
-      {/* Mobile Sheet */}
       <Sheet>
         <SheetTrigger asChild>
           <Button
@@ -99,7 +116,13 @@ export default function DashboardSidebar() {
           </Button>
         </SheetTrigger>
         <SheetContent side="left" className="p-0 w-64">
-          <NavContent />
+          <SidebarNavContent
+            currentOrgName={currentOrg?.name}
+            userName={user?.name}
+            userEmail={user?.email}
+            pathname={pathname}
+            onLogout={logout}
+          />
         </SheetContent>
       </Sheet>
     </>

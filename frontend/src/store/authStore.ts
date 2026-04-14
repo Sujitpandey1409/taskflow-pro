@@ -1,6 +1,6 @@
-// src/store/authStore.ts
-import { create } from 'zustand';
-import api from '@/lib/api';
+import { create } from "zustand";
+import api from "@/lib/api";
+import type { RegisterFormData } from "@/validations/auth";
 
 interface User {
   id: string;
@@ -18,8 +18,9 @@ interface AuthState {
   user: User | null;
   currentOrg: Org | null;
   isLoading: boolean;
+  isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (data: any) => Promise<void>;
+  register: (data: RegisterFormData) => Promise<void>;
   logout: () => Promise<void>;
   fetchMe: () => Promise<void>;
   setCurrentOrg: (org: Org) => void;
@@ -29,69 +30,74 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   currentOrg: null,
   isLoading: false,
+  isAuthenticated: false,
 
-  // ✅ LOGIN 
   login: async (email, password) => {
     set({ isLoading: true });
 
     try {
-      const res = await api.post('/auth/login', { email, password });
+      const res = await api.post("/auth/login", { email, password });
 
       set({
         user: res.data.user,
         currentOrg: res.data.org,
+        isAuthenticated: true,
       });
     } catch (error) {
-      // rethrow so UI can handle it
+      set({ isAuthenticated: false });
       throw error;
     } finally {
-      // ALWAYS reset loading
       set({ isLoading: false });
     }
   },
 
-  // ✅ REGISTER 
   register: async (data) => {
     set({ isLoading: true });
 
     try {
-      const res = await api.post('/auth/register', data);
+      const res = await api.post("/auth/register", data);
 
       set({
         user: res.data.user,
         currentOrg: res.data.org,
+        isAuthenticated: true,
       });
     } catch (error) {
+      set({ isAuthenticated: false });
       throw error;
     } finally {
       set({ isLoading: false });
     }
   },
 
-  // ✅ NEW: FETCH CURRENT USER FROM COOKIE
   fetchMe: async () => {
     try {
       const res = await api.get("/auth/me");
       set({
         user: res.data.user,
         currentOrg: res.data.org,
+        isAuthenticated: true,
       });
     } catch {
-      // not logged in or token expired
-      set({ user: null, currentOrg: null });
+      set({
+        user: null,
+        currentOrg: null,
+        isAuthenticated: false,
+      });
     }
   },
 
-  // ✅ LOGOUT (SAFE)
   logout: async () => {
     try {
-      await api.post('/auth/logout');
+      await api.post("/auth/logout");
     } finally {
-      // even if logout API fails, clear local state
-      set({ user: null, currentOrg: null });
+      set({
+        user: null,
+        currentOrg: null,
+        isAuthenticated: false,
+      });
     }
   },
 
-  // ✅ SET CURRENT ORG
   setCurrentOrg: (org) => set({ currentOrg: org }),
 }));

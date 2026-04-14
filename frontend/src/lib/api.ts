@@ -2,37 +2,54 @@ import axios from "axios";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
-  withCredentials: true, // 🔴 REQUIRED for cookies
+  withCredentials: true,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-// 🔁 Refresh token queue
-let isRefreshing = false;
-let failedQueue: any[] = [];
+type QueueEntry = {
+  resolve: (value?: unknown) => void;
+  reject: (reason?: unknown) => void;
+};
 
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) prom.reject(error);
-    else prom.resolve(token);
+let isRefreshing = false;
+let failedQueue: QueueEntry[] = [];
+
+const processQueue = (error: unknown, token: string | null = null) => {
+  failedQueue.forEach((request) => {
+    if (error) {
+      request.reject(error);
+      return;
+    }
+
+    request.resolve(token);
   });
 
   failedQueue = [];
 };
 
-// 🔥 RESPONSE INTERCEPTOR
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const originalRequest = error.config;
+    const originalRequest = error.config as typeof error.config & {
+      _retry?: boolean;
+      url?: string;
+    };
 
-    // Access token expired
     if (
-      error.response?.status === 401 &&
-      !originalRequest._retry
+      originalRequest.url?.includes("/auth/login") ||
+      originalRequest.url?.includes("/auth/register") ||
+      originalRequest.url?.includes("/auth/refresh")
     ) {
+      return Promise.reject(error);
+    }
+
+    if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
       if (isRefreshing) {
-        return new Promise(function (resolve, reject) {
+        return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then(() => api(originalRequest));
       }
@@ -40,20 +57,18 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // 🔁 Call refresh endpoint
         await api.post("/auth/refresh");
-
         processQueue(null);
         return api(originalRequest);
-      } catch (err) {
-        processQueue(err, null);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
 
-        // 🔒 Logout user if refresh fails
         if (typeof window !== "undefined") {
+          localStorage.removeItem("auth-storage");
           window.location.href = "/login";
         }
 
-        return Promise.reject(err);
+        return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }

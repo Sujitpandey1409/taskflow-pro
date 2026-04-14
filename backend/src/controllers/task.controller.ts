@@ -4,7 +4,9 @@ import { Request, Response } from 'express';
 export const getTasks = async (req: Request, res: Response) => {
   try {
     const TaskModel = req.tenantDB.Task;
-    const tasks = await TaskModel.find({ projectId: req.query.projectId || null });
+    const projectId = req.query.projectId;
+    const query = projectId ? { projectId } : {};
+    const tasks = await TaskModel.find(query);
     res.json({ tasks });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
@@ -27,6 +29,28 @@ export const createTask = async (req: Request, res: Response) => {
     });
 
     res.status(201).json({ task });
+  } catch (err: any) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const updateTaskStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const TaskModel = req.tenantDB.Task;
+
+    const updatedTask = await TaskModel.findByIdAndUpdate(
+      id,
+      { status },
+      { new: true }
+    );
+
+    if (!updatedTask) {
+      return res.status(404).json({ message: "Task not found" });
+    }
+
+    res.json({ task: updatedTask });
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }

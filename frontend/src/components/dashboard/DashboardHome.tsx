@@ -7,22 +7,26 @@ import { useAuthStore } from "@/store/authStore";
 import { Button } from "@/components/ui/button";
 import { Plus, FolderKanban, CheckSquare, Calendar } from "lucide-react";
 import Link from "next/link";
+import { queryKeys } from "@/lib/queryKeys";
+import type { Project, Task } from "@/types/domain";
 
 export default function DashboardHome() {
   const { user, currentOrg } = useAuthStore();
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => api.get("/projects").then(res => res.data.projects || []),
+    queryKey: queryKeys.projects,
+    queryFn: () =>
+      api.get<{ projects: Project[] }>("/projects").then((res) => res.data.projects || []),
   });
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => api.get("/tasks").then(res => res.data.tasks || []),
+    queryKey: queryKeys.tasks,
+    queryFn: () =>
+      api.get<{ tasks: Task[] }>("/tasks").then((res) => res.data.tasks || []),
   });
 
-  const tasksInProgress = tasks.filter((t: any) => t.status === "IN_PROGRESS").length;
-  const dueThisWeek = tasks.filter((t: any) => {
+  const tasksInProgress = tasks.filter((t) => t.status === "IN_PROGRESS").length;
+  const dueThisWeek = tasks.filter((t) => {
     if (!t.dueDate) return false;
     const due = new Date(t.dueDate);
     const now = new Date();
@@ -37,7 +41,7 @@ export default function DashboardHome() {
           Welcome back, {user?.name.split(" ")[0] || "there"}!
         </h1>
         <p className="text-xl text-gray-600 mt-2">
-          You're in <span className="font-semibold">{currentOrg?.name}</span>
+          You&apos;re in <span className="font-semibold">{currentOrg?.name}</span>
         </p>
       </div>
 
@@ -97,7 +101,7 @@ export default function DashboardHome() {
       ) : (
         <div className="text-center py-16">
           <p className="text-2xl text-gray-700 mb-6">
-            You're all set! Jump back into your work.
+            You&apos;re all set! Jump back into your work.
           </p>
           <div className="flex gap-4 justify-center">
             <Link href="/dashboard/projects">

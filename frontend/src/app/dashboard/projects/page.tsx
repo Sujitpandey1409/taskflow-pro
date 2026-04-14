@@ -1,37 +1,40 @@
-// src/app/dashboard/projects/page.tsx
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { FolderKanban } from "lucide-react";
 import api from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import type { Project, Task } from "@/types/domain";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { FolderKanban, Plus } from "lucide-react";
-import CreateProjectDialog from "../../../components/projects/CreateProjectDialog";
+import CreateProjectDialog from "@/components/projects/CreateProjectDialog";
 import CreateTaskDialog from "@/components/tasks/CreateTaskDialog";
 
 export default function ProjectsPage() {
   const { data: projects = [], isLoading } = useQuery({
-    queryKey: ["projects"],
-    queryFn: () => api.get("/projects").then(res => res.data.projects || []),
+    queryKey: queryKeys.projects,
+    queryFn: () =>
+      api.get<{ projects: Project[] }>("/projects").then((res) => res.data.projects || []),
+  });
+
+  const { data: tasks = [] } = useQuery({
+    queryKey: queryKeys.tasks,
+    queryFn: () => api.get<{ tasks: Task[] }>("/tasks").then((res) => res.data.tasks || []),
   });
 
   if (isLoading) {
-    return <div className="text-center py-32 text-gray-500">Loading your projects...</div>;
+    return <div className="py-32 text-center text-gray-500">Loading your projects...</div>;
   }
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Header */}
       <div className="mb-10">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-4xl font-bold text-gray-900">Projects</h1>
-            <p className="text-lg text-gray-600 mt-2">
-              Manage all your work in one place
-            </p>
+            <p className="mt-2 text-lg text-gray-600">Manage all your work in one place</p>
           </div>
 
-          {/* Action Buttons — Beautifully Aligned */}
           <div className="flex gap-3">
             <CreateTaskDialog />
             <CreateProjectDialog />
@@ -39,57 +42,59 @@ export default function ProjectsPage() {
         </div>
       </div>
 
-      {/* Empty State — Stunning */}
       {projects.length === 0 ? (
-        <div className="text-center py-32">
-          <div className="inline-flex items-center justify-center w-32 h-32 bg-gradient-to-br from-indigo-100 to-purple-100 rounded-full mb-8">
+        <div className="py-32 text-center">
+          <div className="mb-8 inline-flex h-32 w-32 items-center justify-center rounded-full bg-gradient-to-br from-indigo-100 to-purple-100">
             <FolderKanban className="h-16 w-16 text-indigo-600" />
           </div>
-          <h2 className="text-3xl font-bold text-gray-800 mb-4">No projects yet</h2>
-          <p className="text-xl text-gray-600 max-w-md mx-auto">
-            Get started by creating your first project. This is where all the magic begins.
+          <h2 className="mb-4 text-3xl font-bold text-gray-800">No projects yet</h2>
+          <p className="mx-auto max-w-md text-xl text-gray-600">
+            Get started by creating your first project. This is where all the work begins.
           </p>
         </div>
       ) : (
-        /* Projects Grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {projects.map((project: any) => (
-            <Card
-              key={project._id}
-              className="group relative overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer border-0 bg-white"
-            >
-              {/* Gradient Top Bar */}
-              <div className="h-2 bg-gradient-to-r from-indigo-500 to-purple-600" />
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {projects.map((project) => {
+            const taskCount = tasks.filter((task) => task.projectId === project._id).length;
 
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <h3 className="text-xl font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
-                    {project.name}
-                  </h3>
-                  <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                    <FolderKanban className="h-5 w-5 text-white" />
+            return (
+              <Card
+                key={project._id}
+                className="group relative cursor-pointer overflow-hidden border-0 bg-white transition-all duration-300 hover:shadow-xl"
+              >
+                <div className="h-2 bg-gradient-to-r from-indigo-500 to-purple-600" />
+
+                <div className="p-6">
+                  <div className="mb-4 flex items-start justify-between">
+                    <h3 className="text-xl font-semibold text-gray-900 transition-colors group-hover:text-indigo-600">
+                      {project.name}
+                    </h3>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 opacity-0 transition-opacity group-hover:opacity-100">
+                      <FolderKanban className="h-5 w-5 text-white" />
+                    </div>
+                  </div>
+
+                  <p className="mb-6 line-clamp-2 text-sm text-gray-600">
+                    {project.description || "No description added"}
+                  </p>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-sm font-medium capitalize text-green-600">{project.status.toLowerCase()}</span>
+                    </div>
+                    <span className="text-sm text-gray-500">{taskCount} tasks</span>
                   </div>
                 </div>
 
-                <p className="text-gray-600 text-sm line-clamp-2 mb-6">
-                  {project.description || "No description added"}
-                </p>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                    <span className="text-sm font-medium text-green-600">Active</span>
-                  </div>
-                  <span className="text-sm text-gray-500">0 tasks</span>
+                <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/50 to-transparent p-6 opacity-0 transition-opacity group-hover:opacity-100">
+                  <Link href={`/dashboard/projects/${project._id}`} className="w-full text-center">
+                    <p className="font-medium text-white">Open project</p>
+                  </Link>
                 </div>
-              </div>
-
-              {/* Hover Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-6">
-                <p className="text-white font-medium">Click to open →</p>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
