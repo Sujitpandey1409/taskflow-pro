@@ -58,41 +58,44 @@ export default function ProjectsPage() {
             const taskCount = tasks.filter((task) => task.projectId === project._id).length;
 
             return (
-              <Card
+              <Link
                 key={project._id}
-                className="group relative cursor-pointer overflow-hidden border-0 bg-white transition-all duration-300 hover:shadow-xl"
+                href={`/dashboard/projects/${project._id}`}
+                className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-4 rounded-xl"
               >
-                <div className="h-2 bg-gradient-to-r from-indigo-500 to-purple-600" />
+                <Card className="group relative cursor-pointer overflow-hidden border-0 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+                  <div className="h-2 bg-gradient-to-r from-indigo-500 to-purple-600" />
 
-                <div className="p-6">
-                  <div className="mb-4 flex items-start justify-between">
-                    <h3 className="text-xl font-semibold text-gray-900 transition-colors group-hover:text-indigo-600">
-                      {project.name}
-                    </h3>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 opacity-0 transition-opacity group-hover:opacity-100">
-                      <FolderKanban className="h-5 w-5 text-white" />
+                  <div className="p-6">
+                    <div className="mb-4 flex items-start justify-between">
+                      <h3 className="text-xl font-semibold text-gray-900 transition-colors group-hover:text-indigo-600">
+                        {project.name}
+                      </h3>
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-500 opacity-0 transition-opacity group-hover:opacity-100">
+                        <FolderKanban className="h-5 w-5 text-white" />
+                      </div>
+                    </div>
+
+                    <p className="mb-6 line-clamp-2 text-sm text-gray-600">
+                      {project.description || "No description added"}
+                    </p>
+
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                        <span className="text-sm font-medium capitalize text-green-600">
+                          {project.status.toLowerCase()}
+                        </span>
+                      </div>
+                      <span className="text-sm text-gray-500">{taskCount} tasks</span>
                     </div>
                   </div>
 
-                  <p className="mb-6 line-clamp-2 text-sm text-gray-600">
-                    {project.description || "No description added"}
-                  </p>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-sm font-medium capitalize text-green-600">{project.status.toLowerCase()}</span>
-                    </div>
-                    <span className="text-sm text-gray-500">{taskCount} tasks</span>
+                  <div className="absolute inset-x-0 bottom-0 flex items-end bg-gradient-to-t from-black/50 to-transparent p-6 opacity-0 transition-opacity group-hover:opacity-100">
+                    <p className="w-full text-center font-medium text-white">Open project</p>
                   </div>
-                </div>
-
-                <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/50 to-transparent p-6 opacity-0 transition-opacity group-hover:opacity-100">
-                  <Link href={`/dashboard/projects/${project._id}`} className="w-full text-center">
-                    <p className="font-medium text-white">Open project</p>
-                  </Link>
-                </div>
-              </Card>
+                </Card>
+              </Link>
             );
           })}
         </div>
