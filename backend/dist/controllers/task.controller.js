@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateTaskStatus = exports.createTask = exports.getTasks = void 0;
+exports.updateTask = exports.createTask = exports.getTasks = void 0;
 const getTasks = async (req, res) => {
     try {
         const TaskModel = req.tenantDB.Task;
@@ -34,12 +34,20 @@ const createTask = async (req, res) => {
     }
 };
 exports.createTask = createTask;
-const updateTaskStatus = async (req, res) => {
+const updateTask = async (req, res) => {
     try {
         const { id } = req.params;
-        const { status } = req.body;
+        const { title, description, projectId, priority, status, dueDate } = req.body;
         const TaskModel = req.tenantDB.Task;
-        const updatedTask = await TaskModel.findByIdAndUpdate(id, { status }, { new: true });
+        const updates = {
+            ...(title !== undefined ? { title } : {}),
+            ...(description !== undefined ? { description } : {}),
+            ...(projectId !== undefined ? { projectId } : {}),
+            ...(priority !== undefined ? { priority } : {}),
+            ...(status !== undefined ? { status } : {}),
+            ...(dueDate !== undefined ? { dueDate } : {}),
+        };
+        const updatedTask = await TaskModel.findByIdAndUpdate(id, updates, { new: true });
         if (!updatedTask) {
             return res.status(404).json({ message: "Task not found" });
         }
@@ -49,4 +57,4 @@ const updateTaskStatus = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
-exports.updateTaskStatus = updateTaskStatus;
+exports.updateTask = updateTask;

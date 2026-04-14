@@ -9,6 +9,7 @@ import type { Task } from "@/types/domain";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import CreateTaskDialog from "@/components/tasks/CreateTaskDialog";
+import EditTaskDialog from "@/components/tasks/EditTaskDialog";
 
 const columns = [
   { id: "TODO", title: "To Do", color: "bg-gray-100" },
@@ -113,7 +114,10 @@ export default function TasksPage() {
                             >
                               <div className="mb-2 flex items-start justify-between">
                                 <h4 className="font-medium">{task.title}</h4>
-                                <GripVertical className="h-5 w-5 text-gray-400" />
+                                <div className="flex items-center gap-1">
+                                  <EditTaskDialog task={task} />
+                                  <GripVertical className="h-5 w-5 text-gray-400" />
+                                </div>
                               </div>
 
                               {task.description && (

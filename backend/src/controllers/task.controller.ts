@@ -34,15 +34,24 @@ export const createTask = async (req: Request, res: Response) => {
   }
 };
 
-export const updateTaskStatus = async (req: Request, res: Response) => {
+export const updateTask = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { title, description, projectId, priority, status, dueDate } = req.body;
     const TaskModel = req.tenantDB.Task;
+
+    const updates = {
+      ...(title !== undefined ? { title } : {}),
+      ...(description !== undefined ? { description } : {}),
+      ...(projectId !== undefined ? { projectId } : {}),
+      ...(priority !== undefined ? { priority } : {}),
+      ...(status !== undefined ? { status } : {}),
+      ...(dueDate !== undefined ? { dueDate } : {}),
+    };
 
     const updatedTask = await TaskModel.findByIdAndUpdate(
       id,
-      { status },
+      updates,
       { new: true }
     );
 

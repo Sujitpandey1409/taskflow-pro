@@ -1,6 +1,6 @@
 // src/routes/task.routes.ts
 import { Router } from 'express';
-import { getTasks, createTask, updateTaskStatus } from '../controllers/task.controller';
+import { getTasks, createTask, updateTask } from '../controllers/task.controller';
 import { protect } from '../middleware/auth.middleware';
 import { loadTenantDB } from '../middleware/tenant.middleware';
 
@@ -10,6 +10,6 @@ router.use(protect, loadTenantDB);
 
 router.get('/', getTasks);
 router.post('/', createTask);
-router.patch('/:id', updateTaskStatus);
+router.patch('/:id', updateTask);
 
 export default router;  
