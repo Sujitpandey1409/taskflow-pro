@@ -10,5 +10,6 @@ const auth_middleware_1 = require("../middleware/auth.middleware");
 const tenant_middleware_1 = require("../middleware/tenant.middleware");
 const router = express_1.default.Router();
 router.use(auth_middleware_1.protect, tenant_middleware_1.loadTenantDB);
+router.get('/', member_controller_1.getMembers);
 router.post('/invite', (0, rbac_middleware_1.requireRole)('ADMIN'), member_controller_1.inviteMember);
 exports.default = router;

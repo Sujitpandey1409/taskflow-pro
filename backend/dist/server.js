@@ -7,12 +7,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const cookie_parser_1 = __importDefault(require("cookie-parser"));
+const http_1 = require("http");
 const db_1 = require("./config/db");
+const chat_socket_1 = require("./socket/chat.socket");
 // add routes
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
+const member_routes_1 = __importDefault(require("./routes/member.routes"));
 const project_routes_1 = __importDefault(require("./routes/project.routes"));
 const task_routes_1 = __importDefault(require("./routes/task.routes"));
 const app = (0, express_1.default)();
+const server = (0, http_1.createServer)(app);
 app.use((0, cors_1.default)({
     origin: [
         "http://localhost:3000",
@@ -23,6 +27,7 @@ app.use((0, cors_1.default)({
 app.use(express_1.default.json());
 app.use((0, cookie_parser_1.default)());
 app.use('/api/auth', auth_routes_1.default);
+app.use('/api/members', member_routes_1.default);
 app.use('/api/projects', project_routes_1.default);
 app.use('/api/tasks', task_routes_1.default);
 // Health check
@@ -47,7 +52,8 @@ const start = async () => {
     try {
         await (0, db_1.connectGlobalDB)();
         const PORT = process.env.PORT || 5000;
-        app.listen(PORT, () => {
+        (0, chat_socket_1.createChatServer)(server);
+        server.listen(PORT, () => {
             console.log(`Backend MERN running on http://localhost:${PORT}`);
         });
     }

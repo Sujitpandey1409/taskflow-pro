@@ -4,7 +4,8 @@ exports.OrganizationMember = void 0;
 // src/models/global/OrganizationMember.ts
 const mongoose_1 = require("mongoose");
 const memberSchema = new mongoose_1.Schema({
-    userId: { type: String, required: true },
+    userId: { type: String },
+    inviteEmail: { type: String, required: true, lowercase: true, trim: true },
     orgId: { type: String, required: true },
     role: {
         type: String,
@@ -16,6 +17,5 @@ const memberSchema = new mongoose_1.Schema({
     joinedAt: { type: Date },
     status: { type: String, enum: ['PENDING', 'ACCEPTED'], default: 'PENDING' },
 }, { timestamps: true });
-// Unique: one user per org
-memberSchema.index({ userId: 1, orgId: 1 }, { unique: true });
+memberSchema.index({ orgId: 1, inviteEmail: 1 }, { unique: true });
 exports.OrganizationMember = (0, mongoose_1.model)('OrganizationMember', memberSchema);

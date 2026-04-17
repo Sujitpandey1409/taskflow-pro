@@ -9,7 +9,16 @@ export const registerSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Please enter a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  orgName: z.string().min(2, "Organization name is required"),
+  registrationMode: z.enum(["CREATE_ORG", "JOIN_INVITE"]),
+  orgName: z.string().optional(),
+}).superRefine((value, ctx) => {
+  if (value.registrationMode === "CREATE_ORG" && (!value.orgName || value.orgName.trim().length < 2)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["orgName"],
+      message: "Organization name is required",
+    });
+  }
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;

@@ -1,145 +1,215 @@
-// src/controllers/auth.controller.ts - ULTRA-ROBUST COOKIE FIX
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import { z } from "zod";
 import { User, IUser } from "../models/global/User";
 import { Organization } from "../models/global/Organization";
 import { OrganizationMember } from "../models/global/OrganizationMember";
 import { connectGlobalDB, connectTenantDB } from "../config/db";
-import {
-  generateAccessToken,
-  generateRefreshToken,
-} from "../utils/generateTokens";
-import { z } from "zod";
-import jwt from "jsonwebtoken";
+import { generateAccessToken, generateRefreshToken } from "../utils/generateTokens";
 
-// === Zod Validation ===
 const registerSchema = z.object({
   name: z.string().min(2),
   email: z.string().email(),
   password: z.string().min(6),
-  orgName: z.string().min(2),
+  orgName: z.string().min(2).optional(),
+  registrationMode: z.enum(["CREATE_ORG", "JOIN_INVITE"]).default("CREATE_ORG"),
 });
 
-// 🔥 ULTRA-ROBUST: Cookie configuration that GUARANTEES cookies work
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
+
+const mergeMemberships = (
+  currentMemberships: IUser["memberships"] = [],
+  nextMemberships: Array<{ orgId: string; role: string; status: string }>
+) => {
+  const membershipMap = new Map<string, { orgId: string; role: string; status: string }>();
+
+  currentMemberships.forEach((membership) => {
+    membershipMap.set(String(membership.orgId), {
+      orgId: String(membership.orgId),
+      role: membership.role,
+      status: membership.status,
+    });
+  });
+
+  nextMemberships.forEach((membership) => {
+    membershipMap.set(String(membership.orgId), {
+      orgId: String(membership.orgId),
+      role: membership.role,
+      status: membership.status,
+    });
+  });
+
+  return Array.from(membershipMap.values());
+};
+
 const setCookie = (res: Response, name: string, value: string, maxAge: number) => {
   const isProd = process.env.NODE_ENV === "production";
-  
-  // 🔥 Method 1: Using res.cookie (standard)
+
   res.cookie(name, value, {
     httpOnly: true,
-    secure: true, // ALWAYS true for production
+    secure: true,
     sameSite: isProd ? "none" : "lax",
-    domain: ".vercel.app", // Adjust domain as needed
-    maxAge: maxAge,
+    domain: ".vercel.app",
+    maxAge,
     path: "/",
   });
 
-  // 🔥 Method 2: ALSO set via header (backup method)
-  // This ensures cookies are set even if res.cookie fails
   const cookieString = [
     `${name}=${value}`,
     `Max-Age=${Math.floor(maxAge / 1000)}`,
-    'Path=/',
-    'HttpOnly',
-    'Secure',
-    isProd ? 'SameSite=None' : 'SameSite=Lax',
-  ].join('; ');
+    "Path=/",
+    "HttpOnly",
+    "Secure",
+    isProd ? "SameSite=None" : "SameSite=Lax",
+  ].join("; ");
 
-  // Append to existing Set-Cookie headers
-  const existingCookies = res.getHeader('Set-Cookie') || [];
-  const cookiesArray = (Array.isArray(existingCookies) 
-    ? existingCookies 
-    : [existingCookies]).filter((cookie): cookie is string => typeof cookie === 'string');
-  
-  res.setHeader('Set-Cookie', [...cookiesArray, cookieString]);
+  const existingCookies = res.getHeader("Set-Cookie") || [];
+  const cookiesArray = (Array.isArray(existingCookies) ? existingCookies : [existingCookies]).filter(
+    (cookie): cookie is string => typeof cookie === "string"
+  );
+
+  res.setHeader("Set-Cookie", [...cookiesArray, cookieString]);
+};
+
+const acceptPendingInvitesForEmail = async (userId: string, email: string) => {
+  const invites = await OrganizationMember.find({
+    inviteEmail: email,
+    status: "PENDING",
+  });
+
+  for (const invite of invites) {
+    invite.userId = userId;
+    invite.status = "ACCEPTED";
+    invite.joinedAt = new Date();
+    await invite.save();
+  }
+
+  return invites;
+};
+
+const getMembershipRole = async (userId: string, orgId: string) => {
+  const membership = await OrganizationMember.findOne({
+    userId,
+    orgId,
+    status: "ACCEPTED",
+  });
+
+  return membership?.role ?? "MEMBER";
 };
 
 export const register = async (req: Request, res: Response) => {
   let tenantConn: any = null;
 
   try {
-    // 1. Validate input
-    const { name, email, password, orgName } = registerSchema.parse(req.body);
+    const { name, email, password, orgName, registrationMode } = registerSchema.parse(req.body);
+    const normalizedEmail = normalizeEmail(email);
 
-    // 2. Connect to global DB
     await connectGlobalDB();
 
-    // 3. Check if user exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // 4. Hash password
+    const pendingInvites = await OrganizationMember.find({
+      inviteEmail: normalizedEmail,
+      status: "PENDING",
+    });
+
+    if (registrationMode === "JOIN_INVITE" && pendingInvites.length === 0) {
+      return res.status(400).json({ message: "No pending organization invite found for this email" });
+    }
+
+    if (registrationMode === "CREATE_ORG" && !orgName?.trim()) {
+      return res.status(400).json({ message: "Organization name is required to create a workspace" });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // 5. Create User
     const user = await User.create({
       name,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
     });
 
-    // 6. Create Organization
-    const orgSlug =
-      orgName.toLowerCase().replace(/\s+/g, "-") +
-      "-" +
-      Date.now().toString(36);
+    if (registrationMode === "JOIN_INVITE") {
+      const acceptedInvites = await acceptPendingInvitesForEmail(String(user._id), normalizedEmail);
+      const primaryInvite = acceptedInvites[0];
+      const primaryOrg = await Organization.findById(primaryInvite.orgId);
+
+      if (!primaryOrg) {
+        return res.status(404).json({ message: "Invited organization not found" });
+      }
+
+      const memberships = acceptedInvites.map((invite) => ({
+        orgId: String(invite.orgId),
+        role: invite.role,
+        status: "ACCEPTED",
+      }));
+
+      await User.findByIdAndUpdate(user._id, {
+        currentOrgId: primaryInvite.orgId,
+        memberships,
+      });
+
+      const accessToken = generateAccessToken(String(user._id), String(primaryInvite.orgId), primaryInvite.role);
+      const refreshToken = generateRefreshToken(String(user._id));
+
+      setCookie(res, "access_token", accessToken, 15 * 60 * 1000);
+      setCookie(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
+
+      return res.status(201).json({
+        message: "Account created and invite accepted successfully",
+        user: { id: user._id, name, email: normalizedEmail },
+        org: { id: primaryOrg._id, name: primaryOrg.name, slug: primaryOrg.slug },
+      });
+    }
+
+    const slugSource = orgName!.trim();
+    const orgSlug = `${slugSource.toLowerCase().replace(/\s+/g, "-")}-${Date.now().toString(36)}`;
     const dbName = `taskflow_org_${user._id}`;
 
     const org = await Organization.create({
-      name: orgName,
+      name: slugSource,
       slug: orgSlug,
       dbName,
       ownerId: user._id,
     });
 
     await OrganizationMember.create({
-      userId: user._id,
-      orgId: org._id,
+      userId: String(user._id),
+      inviteEmail: normalizedEmail,
+      orgId: String(org._id),
       role: "OWNER",
-      invitedBy: user._id,
+      invitedBy: String(user._id),
       status: "ACCEPTED",
       joinedAt: new Date(),
     });
 
-    // 7. Create Tenant DB
     tenantConn = await connectTenantDB(dbName);
 
-    // 8. Set current org and add membership
     await User.findByIdAndUpdate(user._id, {
       currentOrgId: org._id,
-      memberships: [{ orgId: org._id, role: "OWNER", status: "ACCEPTED" }],
+      memberships: [{ orgId: String(org._id), role: "OWNER", status: "ACCEPTED" }],
     });
 
-    // 9. Generate Tokens
-    const accessToken = generateAccessToken(user._id, org._id, "OWNER");
-    const refreshToken = generateRefreshToken(user._id);
+    const accessToken = generateAccessToken(String(user._id), String(org._id), "OWNER");
+    const refreshToken = generateRefreshToken(String(user._id));
 
-    // 10. 🔥 ULTRA-ROBUST: Set cookies with dual method
     setCookie(res, "access_token", accessToken, 15 * 60 * 1000);
     setCookie(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
 
-    console.log('✅ Cookies set for registration:', { userId: user._id });
-
-    // 11. Success
     res.status(201).json({
-      message: "User & organization created successfully",
-      user: { id: user._id, name, email },
-      org: { id: org._id, name: orgName, slug: orgSlug },
-      // 🔥 NEW: Return tokens in response body as backup
-      tokens: {
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      },
+      message: "User and organization created successfully",
+      user: { id: user._id, name, email: normalizedEmail },
+      org: { id: org._id, name: slugSource, slug: orgSlug },
     });
   } catch (err: any) {
-    // === CRITICAL: If tenant setup fails → rollback ===
     if (tenantConn) {
       try {
         await tenantConn.dropDatabase();
-        console.log(`Rolled back tenant DB due to error`);
       } catch (rollbackErr) {
         console.error("Rollback failed:", rollbackErr);
       }
@@ -153,10 +223,7 @@ export const register = async (req: Request, res: Response) => {
   }
 };
 
-// 🔥 ULTRA-ROBUST: Login with guaranteed cookies
 export const login = async (req: Request, res: Response) => {
-  console.log("Login attempt:", { email: req.body.email, ip: req.ip });
-  
   try {
     const { email, password } = z
       .object({
@@ -165,9 +232,11 @@ export const login = async (req: Request, res: Response) => {
       })
       .parse(req.body);
 
+    const normalizedEmail = normalizeEmail(email);
+
     await connectGlobalDB();
 
-    const user: IUser | null = await User.findOne({ email }).select("+password");
+    const user: IUser | null = await User.findOne({ email: normalizedEmail }).select("+password");
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -177,61 +246,45 @@ export const login = async (req: Request, res: Response) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // Get user's current org
-    if (!user.currentOrgId) {
+    const acceptedInvites = await acceptPendingInvitesForEmail(String(user._id), normalizedEmail);
+    const invitedMemberships = acceptedInvites.map((invite) => ({
+      orgId: String(invite.orgId),
+      role: invite.role,
+      status: "ACCEPTED",
+    }));
+
+    const mergedMemberships = mergeMemberships(user.memberships, invitedMemberships);
+
+    let currentOrgId = user.currentOrgId;
+    if (!currentOrgId && mergedMemberships.length > 0) {
+      currentOrgId = mergedMemberships[0].orgId;
+    }
+
+    if (!currentOrgId) {
       return res.status(400).json({ message: "No organization selected" });
     }
 
-    const org = await Organization.findById(user.currentOrgId);
+    const org = await Organization.findById(currentOrgId);
     if (!org) {
       return res.status(400).json({ message: "Organization not found" });
     }
 
-    // Generate tokens
-    const accessToken = generateAccessToken(user._id, org._id, "OWNER");
-    const refreshToken = generateRefreshToken(user._id);
+    await User.findByIdAndUpdate(user._id, {
+      currentOrgId,
+      memberships: mergedMemberships,
+    });
 
-    // 🔥 ULTRA-ROBUST: Set cookies with dual method
+    const currentRole = await getMembershipRole(String(user._id), String(org._id));
+    const accessToken = generateAccessToken(String(user._id), String(org._id), currentRole);
+    const refreshToken = generateRefreshToken(String(user._id));
+
     setCookie(res, "access_token", accessToken, 15 * 60 * 1000);
     setCookie(res, "refresh_token", refreshToken, 7 * 24 * 60 * 60 * 1000);
-
-    console.log('✅ Cookies set for login:', { 
-      userId: user._id, 
-      cookiesSent: res.getHeader('Set-Cookie')
-    });
-
-    // Process any pending invites
-    const pendingInvites = await OrganizationMember.find({
-      userId: user._id,
-      status: "PENDING",
-    });
-
-    for (const invite of pendingInvites) {
-      invite.status = "ACCEPTED";
-      invite.joinedAt = new Date();
-      await invite.save();
-
-      if (!user.memberships) {
-        user.memberships = [];
-      }
-      user.memberships.push({
-        orgId: invite.orgId,
-        role: invite.role,
-        status: "ACCEPTED",
-      });
-    }
-
-    await User.findByIdAndUpdate(user._id, { memberships: user.memberships });
 
     res.json({
       message: "Login successful",
       user: { id: user._id, name: user.name, email: user.email },
       org: { id: org._id, name: org.name, slug: org.slug },
-      // 🔥 NEW: Return tokens in response body as backup
-      tokens: {
-        access_token: accessToken,
-        refresh_token: refreshToken,
-      },
     });
   } catch (err: any) {
     console.error("Login error:", err);
@@ -239,7 +292,6 @@ export const login = async (req: Request, res: Response) => {
   }
 };
 
-// 🔥 ULTRA-ROBUST: Refresh with guaranteed cookies
 export const refresh = async (req: Request, res: Response) => {
   const refreshToken = req.cookies.refresh_token;
 
@@ -248,12 +300,9 @@ export const refresh = async (req: Request, res: Response) => {
   }
 
   try {
-    const decoded: any = jwt.verify(
-      refreshToken,
-      process.env.JWT_REFRESH_SECRET!
-    );
-
+    const decoded: any = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!);
     const user = await User.findById(decoded.userId);
+
     if (!user || !user.currentOrgId) {
       return res.status(401).json({ message: "Invalid refresh token" });
     }
@@ -263,34 +312,21 @@ export const refresh = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Org not found" });
     }
 
-    const newAccessToken = generateAccessToken(user._id, org._id, "OWNER");
+    const role = await getMembershipRole(String(user._id), String(org._id));
+    const newAccessToken = generateAccessToken(String(user._id), String(org._id), role);
 
-    // 🔥 ULTRA-ROBUST: Set cookie with dual method
     setCookie(res, "access_token", newAccessToken, 15 * 60 * 1000);
 
-    console.log('✅ Cookie refreshed:', { userId: user._id });
-
-    return res.json({ 
-      message: "Token refreshed",
-      // 🔥 NEW: Return token in response body as backup
-      tokens: {
-        access_token: newAccessToken,
-      },
-    });
+    return res.json({ message: "Token refreshed" });
   } catch (err) {
     console.error("Refresh error:", err);
     return res.status(401).json({ message: "Invalid refresh token" });
   }
 };
 
-// Get current user info
 export const me = async (req: Request, res: Response) => {
   try {
-    const { userId, orgId } = req.user as {
-      userId: string;
-      orgId: string;
-      role: string;
-    };
+    const { userId, orgId } = req.user as { userId: string; orgId: string; role: string };
 
     const user = await User.findById(userId).select("-password");
     if (!user) {
@@ -320,11 +356,9 @@ export const me = async (req: Request, res: Response) => {
   }
 };
 
-// 🔥 ULTRA-ROBUST: Logout with proper cookie clearing
-export const logout = (req: Request, res: Response) => {
+export const logout = (_req: Request, res: Response) => {
   const isProd = process.env.NODE_ENV === "production";
-  
-  // Method 1: Using clearCookie
+
   res.clearCookie("access_token", {
     httpOnly: true,
     secure: true,
@@ -339,15 +373,11 @@ export const logout = (req: Request, res: Response) => {
     path: "/",
   });
 
-  // Method 2: Also set expired cookies via header
   const expiredCookies = [
-    `access_token=; Max-Age=0; Path=/; HttpOnly; Secure; ${isProd ? 'SameSite=None' : 'SameSite=Lax'}`,
-    `refresh_token=; Max-Age=0; Path=/; HttpOnly; Secure; ${isProd ? 'SameSite=None' : 'SameSite=Lax'}`,
+    `access_token=; Max-Age=0; Path=/; HttpOnly; Secure; ${isProd ? "SameSite=None" : "SameSite=Lax"}`,
+    `refresh_token=; Max-Age=0; Path=/; HttpOnly; Secure; ${isProd ? "SameSite=None" : "SameSite=Lax"}`,
   ];
 
-  res.setHeader('Set-Cookie', expiredCookies);
-
-  console.log('✅ Cookies cleared for logout');
-
+  res.setHeader("Set-Cookie", expiredCookies);
   res.json({ message: "Logged out" });
 };

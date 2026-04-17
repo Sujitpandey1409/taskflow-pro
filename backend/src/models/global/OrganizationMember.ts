@@ -2,7 +2,8 @@
 import { Schema, model } from 'mongoose';
 
 export interface IOrganizationMember {
-  userId: string;
+  userId?: string;
+  inviteEmail: string;
   orgId: string;
   role: 'OWNER' | 'ADMIN' | 'MEMBER';
   invitedBy: string;
@@ -12,7 +13,8 @@ export interface IOrganizationMember {
 }
 
 const memberSchema = new Schema<IOrganizationMember>({
-  userId: { type: String, required: true },
+  userId: { type: String },
+  inviteEmail: { type: String, required: true, lowercase: true, trim: true },
   orgId: { type: String, required: true },
   role: {
     type: String,
@@ -25,7 +27,6 @@ const memberSchema = new Schema<IOrganizationMember>({
   status: { type: String, enum: ['PENDING', 'ACCEPTED'], default: 'PENDING' },
 }, { timestamps: true });
 
-// Unique: one user per org
-memberSchema.index({ userId: 1, orgId: 1 }, { unique: true });
+memberSchema.index({ orgId: 1, inviteEmail: 1 }, { unique: true });
 
 export const OrganizationMember = model<IOrganizationMember>('OrganizationMember', memberSchema);

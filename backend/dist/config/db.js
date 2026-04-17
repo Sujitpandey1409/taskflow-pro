@@ -15,7 +15,6 @@ let globalConn = null;
 const connectGlobalDB = async () => {
     if (globalConn)
         return globalConn;
-    console.log('Connecting to Global DB...', process.env.MONGO_GLOBAL_URI);
     globalConn = await mongoose_1.default.connect(process.env.MONGO_GLOBAL_URI, {
         dbName: 'taskflow_global',
     });
@@ -31,9 +30,9 @@ const connectTenantDB = async (dbName) => {
     if (tenantConnections.has(dbName)) {
         return tenantConnections.get(dbName);
     }
-    // Replace only the DB name in URI
-    const tenantUri = process.env.MONGO_GLOBAL_URI.replace('taskflow_global', dbName);
-    const conn = await mongoose_1.default.createConnection(tenantUri).asPromise();
+    const conn = await mongoose_1.default.createConnection(process.env.MONGO_GLOBAL_URI, {
+        dbName,
+    }).asPromise();
     console.log(`Connected to TENANT DB: ${dbName}`);
     tenantConnections.set(dbName, conn);
     return conn;

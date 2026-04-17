@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import CreateTaskDialog from "@/components/tasks/CreateTaskDialog";
 import EditTaskDialog from "@/components/tasks/EditTaskDialog";
+import { useAuthStore } from "@/store/authStore";
 
 const columns = [
   { id: "TODO", title: "To Do", color: "bg-gray-100" },
@@ -18,21 +19,24 @@ const columns = [
 ] as const;
 
 export default function TasksPage() {
+  const currentOrg = useAuthStore((state) => state.currentOrg);
+  const orgId = currentOrg?.id;
   const queryClient = useQueryClient();
 
   const { data: tasks = [], isLoading } = useQuery({
-    queryKey: queryKeys.tasks,
+    queryKey: queryKeys.tasks(orgId),
     queryFn: () => api.get<{ tasks: Task[] }>("/tasks").then((res) => res.data.tasks || []),
+    enabled: Boolean(orgId),
   });
 
   const updateTaskStatus = useMutation({
     mutationFn: ({ taskId, status }: { taskId: string; status: Task["status"] }) =>
       api.patch(`/tasks/${taskId}`, { status }),
     onMutate: async ({ taskId, status }) => {
-      await queryClient.cancelQueries({ queryKey: queryKeys.tasks });
-      const previousTasks = queryClient.getQueryData<Task[]>(queryKeys.tasks) ?? [];
+      await queryClient.cancelQueries({ queryKey: queryKeys.tasks(orgId) });
+      const previousTasks = queryClient.getQueryData<Task[]>(queryKeys.tasks(orgId)) ?? [];
 
-      queryClient.setQueryData<Task[]>(queryKeys.tasks, (current = []) =>
+      queryClient.setQueryData<Task[]>(queryKeys.tasks(orgId), (current = []) =>
         current.map((task) => (task._id === taskId ? { ...task, status } : task))
       );
 
@@ -40,11 +44,11 @@ export default function TasksPage() {
     },
     onError: (_error, _variables, context) => {
       if (context?.previousTasks) {
-        queryClient.setQueryData(queryKeys.tasks, context.previousTasks);
+        queryClient.setQueryData(queryKeys.tasks(orgId), context.previousTasks);
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks(orgId) });
     },
   });
 

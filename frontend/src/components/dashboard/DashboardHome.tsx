@@ -12,17 +12,20 @@ import type { Project, Task } from "@/types/domain";
 
 export default function DashboardHome() {
   const { user, currentOrg } = useAuthStore();
+  const orgId = currentOrg?.id;
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery({
-    queryKey: queryKeys.projects,
+    queryKey: queryKeys.projects(orgId),
     queryFn: () =>
       api.get<{ projects: Project[] }>("/projects").then((res) => res.data.projects || []),
+    enabled: Boolean(orgId),
   });
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery({
-    queryKey: queryKeys.tasks,
+    queryKey: queryKeys.tasks(orgId),
     queryFn: () =>
       api.get<{ tasks: Task[] }>("/tasks").then((res) => res.data.tasks || []),
+    enabled: Boolean(orgId),
   });
 
   const tasksInProgress = tasks.filter((t) => t.status === "IN_PROGRESS").length;

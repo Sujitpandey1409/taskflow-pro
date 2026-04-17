@@ -16,12 +16,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import TaskFormFields from "@/components/tasks/TaskFormFields";
+import { useAuthStore } from "@/store/authStore";
 
 type EditTaskDialogProps = {
   task: Task;
 };
 
 export default function EditTaskDialog({ task }: EditTaskDialogProps) {
+  const currentOrg = useAuthStore((state) => state.currentOrg);
+  const orgId = currentOrg?.id;
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState(task.title);
   const [description, setDescription] = useState(task.description ?? "");
@@ -43,9 +46,10 @@ export default function EditTaskDialog({ task }: EditTaskDialogProps) {
   };
 
   const { data: projects = [] } = useQuery({
-    queryKey: queryKeys.projects,
+    queryKey: queryKeys.projects(orgId),
     queryFn: () =>
       api.get<{ projects: Project[] }>("/projects").then((res) => res.data.projects || []),
+    enabled: Boolean(orgId),
   });
 
   const mutation = useMutation({
@@ -61,13 +65,13 @@ export default function EditTaskDialog({ task }: EditTaskDialogProps) {
     onSuccess: (response) => {
       const updatedTask = response.data.task as Task;
 
-      queryClient.setQueryData<Task[]>(queryKeys.tasks, (current = []) =>
+      queryClient.setQueryData<Task[]>(queryKeys.tasks(orgId), (current = []) =>
         current.map((currentTask) =>
           currentTask._id === updatedTask._id ? updatedTask : currentTask
         )
       );
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks });
+      queryClient.invalidateQueries({ queryKey: queryKeys.projects(orgId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks(orgId) });
       toast.success("Task updated");
       setOpen(false);
     },

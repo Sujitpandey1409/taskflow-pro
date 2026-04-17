@@ -8,20 +8,25 @@ import { queryKeys } from "@/lib/queryKeys";
 import type { Project, Task } from "@/types/domain";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useAuthStore } from "@/store/authStore";
 
 export default function ProjectDetailsPage() {
+  const currentOrg = useAuthStore((state) => state.currentOrg);
+  const orgId = currentOrg?.id;
   const params = useParams<{ id: string }>();
   const projectId = params.id;
 
   const { data: projects = [], isLoading: projectsLoading } = useQuery({
-    queryKey: queryKeys.projects,
+    queryKey: queryKeys.projects(orgId),
     queryFn: () =>
       api.get<{ projects: Project[] }>("/projects").then((res) => res.data.projects || []),
+    enabled: Boolean(orgId),
   });
 
   const { data: tasks = [], isLoading: tasksLoading } = useQuery({
-    queryKey: queryKeys.tasks,
+    queryKey: queryKeys.tasks(orgId),
     queryFn: () => api.get<{ tasks: Task[] }>("/tasks").then((res) => res.data.tasks || []),
+    enabled: Boolean(orgId),
   });
 
   const project = projects.find((item) => item._id === projectId);

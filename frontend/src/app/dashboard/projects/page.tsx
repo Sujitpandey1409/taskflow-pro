@@ -9,17 +9,23 @@ import type { Project, Task } from "@/types/domain";
 import { Card } from "@/components/ui/card";
 import CreateProjectDialog from "@/components/projects/CreateProjectDialog";
 import CreateTaskDialog from "@/components/tasks/CreateTaskDialog";
+import { useAuthStore } from "@/store/authStore";
 
 export default function ProjectsPage() {
+  const currentOrg = useAuthStore((state) => state.currentOrg);
+  const orgId = currentOrg?.id;
+
   const { data: projects = [], isLoading } = useQuery({
-    queryKey: queryKeys.projects,
+    queryKey: queryKeys.projects(orgId),
     queryFn: () =>
       api.get<{ projects: Project[] }>("/projects").then((res) => res.data.projects || []),
+    enabled: Boolean(orgId),
   });
 
   const { data: tasks = [] } = useQuery({
-    queryKey: queryKeys.tasks,
+    queryKey: queryKeys.tasks(orgId),
     queryFn: () => api.get<{ tasks: Task[] }>("/tasks").then((res) => res.data.tasks || []),
+    enabled: Boolean(orgId),
   });
 
   if (isLoading) {
