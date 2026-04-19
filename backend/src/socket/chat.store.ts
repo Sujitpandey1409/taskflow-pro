@@ -42,6 +42,24 @@ export const getOnlineMembers = (orgId: string): ChatMember[] => {
   return Array.from(uniqueMembers.values());
 };
 
+export const getSocketIdsForUser = (orgId: string, userId: string): string[] => {
+  const room = roomMemberships.get(orgId);
+
+  if (!room) {
+    return [];
+  }
+
+  const socketIds: string[] = [];
+
+  for (const [socketId, member] of room.entries()) {
+    if (member.userId === userId) {
+      socketIds.push(socketId);
+    }
+  }
+
+  return socketIds;
+};
+
 export const getRoomHistory = (orgId: string): ChatMessage[] => {
   return roomMessages.get(orgId) ?? [];
 };

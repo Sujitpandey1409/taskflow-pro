@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createMessage = exports.getRoomHistory = exports.getOnlineMembers = exports.removeMemberFromRoom = exports.addMemberToRoom = void 0;
+exports.createMessage = exports.getRoomHistory = exports.getSocketIdsForUser = exports.getOnlineMembers = exports.removeMemberFromRoom = exports.addMemberToRoom = void 0;
 const crypto_1 = require("crypto");
 const MAX_HISTORY_PER_ORG = 50;
 const roomMemberships = new Map();
@@ -34,6 +34,20 @@ const getOnlineMembers = (orgId) => {
     return Array.from(uniqueMembers.values());
 };
 exports.getOnlineMembers = getOnlineMembers;
+const getSocketIdsForUser = (orgId, userId) => {
+    const room = roomMemberships.get(orgId);
+    if (!room) {
+        return [];
+    }
+    const socketIds = [];
+    for (const [socketId, member] of room.entries()) {
+        if (member.userId === userId) {
+            socketIds.push(socketId);
+        }
+    }
+    return socketIds;
+};
+exports.getSocketIdsForUser = getSocketIdsForUser;
 const getRoomHistory = (orgId) => {
     return roomMessages.get(orgId) ?? [];
 };

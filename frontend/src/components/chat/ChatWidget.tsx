@@ -1,13 +1,66 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
-import { MessageCircle, Send, Users, Wifi, WifiOff, X } from "lucide-react";
+import {
+  MessageCircle,
+  Mic,
+  PhoneCall,
+  PhoneOff,
+  Send,
+  Video,
+  Wifi,
+  WifiOff,
+  X,
+} from "lucide-react";
 import { useOrgChat } from "@/hooks/useOrgChat";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+
+function VideoTile({
+  label,
+  stream,
+  muted = false,
+  mirrored = false,
+}: {
+  label: string;
+  stream: MediaStream | null;
+  muted?: boolean;
+  mirrored?: boolean;
+}) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    if (!videoRef.current) {
+      return;
+    }
+
+    videoRef.current.srcObject = stream;
+  }, [stream]);
+
+  return (
+    <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-slate-900">
+      {stream ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted={muted}
+          className={`aspect-video w-full object-cover ${mirrored ? "scale-x-[-1]" : ""}`}
+        />
+      ) : (
+        <div className="flex aspect-video w-full items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 text-sm text-slate-300">
+          Waiting for video...
+        </div>
+      )}
+      <div className="absolute bottom-3 left-3 rounded-full bg-black/50 px-3 py-1 text-xs text-white backdrop-blur">
+        {label}
+      </div>
+    </div>
+  );
+}
 
 export default function ChatWidget() {
   const {
@@ -19,9 +72,19 @@ export default function ChatWidget() {
     isConnected,
     errorMessage,
     sendMessage,
+    pendingIncomingCall,
+    activeCall,
+    localStream,
+    remoteStream,
+    startAudioCall,
+    startVideoCall,
+    acceptIncomingCall,
+    declineIncomingCall,
+    endCall,
   } = useOrgChat();
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState("");
+  const [activeTab, setActiveTab] = useState<"chat" | "people">("chat");
   const messageContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -29,14 +92,6 @@ export default function ChatWidget() {
       messageContainerRef.current.scrollTop = messageContainerRef.current.scrollHeight;
     }
   }, [messages, isOpen]);
-
-  const onlineLabel = useMemo(() => {
-    if (onlineMembers.length === 1) {
-      return "1 teammate online";
-    }
-
-    return `${onlineMembers.length} teammates online`;
-  }, [onlineMembers.length]);
 
   const acceptedMembers = useMemo(
     () => members.filter((member) => member.status === "ACCEPTED"),
@@ -47,6 +102,14 @@ export default function ChatWidget() {
     () => new Set(onlineMembers.map((member) => member.userId)),
     [onlineMembers]
   );
+
+  const onlineLabel = useMemo(() => {
+    if (onlineMembers.length === 1) {
+      return "1 teammate online";
+    }
+
+    return `${onlineMembers.length} teammates online`;
+  }, [onlineMembers.length]);
 
   const handleSend = () => {
     if (!draft.trim()) {
@@ -62,113 +125,225 @@ export default function ChatWidget() {
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+    <div className="fixed bottom-5 right-5 z-[2147483000] flex flex-col items-end gap-3">
+      {pendingIncomingCall ? (
+        <Card className="w-[360px] border-0 bg-gradient-to-br from-rose-500 via-fuchsia-600 to-indigo-700 p-5 text-white shadow-2xl">
+          <p className="text-xs uppercase tracking-[0.25em] text-white/70">Incoming call</p>
+          <h3 className="mt-3 text-2xl font-semibold">{pendingIncomingCall.fromUserName}</h3>
+          <p className="mt-2 text-sm text-white/80">
+            {pendingIncomingCall.videoEnabled ? "Wants to start a video call" : "Wants to start an audio call"}
+          </p>
+          <div className="mt-5 flex gap-3">
+            <Button className="flex-1 bg-white text-slate-900 hover:bg-slate-100" onClick={acceptIncomingCall}>
+              Answer
+            </Button>
+            <Button className="flex-1 bg-black/20 text-white hover:bg-black/30" onClick={declineIncomingCall}>
+              Decline
+            </Button>
+          </div>
+        </Card>
+      ) : null}
+
       {isOpen ? (
-        <Card className="w-[360px] overflow-hidden border-slate-200 shadow-2xl">
-          <div className="bg-slate-950 px-4 py-4 text-white">
+        <Card className="w-[420px] overflow-hidden border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.2),_rgba(15,23,42,1)_45%)] text-white shadow-[0_24px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl">
+          <div className="border-b border-white/10 px-5 py-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-slate-300">
-                    Org chat
-                  </p>
-                  <Badge className="border-0 bg-white/10 text-white hover:bg-white/10">
-                    {currentOrg.name}
-                  </Badge>
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-300">Collab hub</p>
+                  <Badge className="border-0 bg-white/10 text-white hover:bg-white/10">{currentOrg.name}</Badge>
                 </div>
+                <h2 className="mt-3 text-2xl font-semibold tracking-tight">Team chat and calls</h2>
                 <div className="mt-3 flex items-center gap-2 text-sm text-slate-300">
                   {isConnected ? <Wifi className="h-4 w-4 text-emerald-400" /> : <WifiOff className="h-4 w-4 text-rose-400" />}
-                  <span>{isConnected ? "Live now" : "Reconnecting..."}</span>
+                  <span>{isConnected ? onlineLabel : "Realtime reconnecting..."}</span>
                 </div>
               </div>
               <Button
                 size="icon"
                 variant="ghost"
-                className="h-8 w-8 text-white hover:bg-white/10 hover:text-white"
+                className="h-9 w-9 text-white hover:bg-white/10 hover:text-white"
                 onClick={() => setIsOpen(false)}
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-white/5 p-1">
+              <button
+                type="button"
+                onClick={() => setActiveTab("chat")}
+                className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                  activeTab === "chat" ? "bg-white text-slate-950" : "text-slate-300"
+                }`}
+              >
+                Messages
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab("people")}
+                className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                  activeTab === "people" ? "bg-white text-slate-950" : "text-slate-300"
+                }`}
+              >
+                People & calls
+              </button>
+            </div>
           </div>
 
-          <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-            <div className="flex items-center gap-2 text-sm text-slate-600">
-              <Users className="h-4 w-4 text-indigo-600" />
-              <span>{onlineLabel}</span>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {acceptedMembers.map((member) => (
-                <Badge key={member.userId} variant="secondary" className="gap-2">
-                  <span
-                    className={`h-2 w-2 rounded-full ${
-                      onlineMemberIds.has(member.userId) ? "bg-emerald-500" : "bg-slate-300"
-                    }`}
-                  />
-                  {member.name}
-                </Badge>
-              ))}
-            </div>
-          </div>
+          {activeCall ? (
+            <div className="space-y-4 border-b border-white/10 bg-black/15 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-white">{activeCall.partnerUserName}</p>
+                  <p className="text-xs uppercase tracking-[0.2em] text-slate-300">
+                    {activeCall.videoEnabled ? "Video call" : "Audio call"} · {activeCall.status}
+                  </p>
+                </div>
+                <Button size="icon" className="bg-rose-500 hover:bg-rose-600" onClick={endCall}>
+                  <PhoneOff className="h-4 w-4" />
+                </Button>
+              </div>
 
-          <div ref={messageContainerRef} className="h-80 space-y-4 overflow-y-auto bg-white p-4">
-              {messages.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                  Start the conversation with your organization. Messages here are scoped to your current workspace.
+              {activeCall.videoEnabled ? (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <VideoTile label="You" stream={localStream} muted mirrored />
+                  <VideoTile label={activeCall.partnerUserName} stream={remoteStream} />
                 </div>
               ) : (
-                messages.map((message) => {
-                  const isOwnMessage = message.userId === currentUser.id;
+                <div className="rounded-3xl border border-white/10 bg-slate-950/60 p-6 text-center">
+                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-300">
+                    <Mic className="h-7 w-7" />
+                  </div>
+                  <p className="mt-4 text-lg font-medium text-white">Voice call active</p>
+                  <p className="mt-2 text-sm text-slate-300">
+                    {remoteStream ? "Connected and streaming audio" : "Waiting for teammate to connect..."}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {activeTab === "chat" ? (
+            <>
+              <div className="border-b border-white/10 bg-white/5 px-5 py-3 text-sm text-slate-300">
+                Messages stay scoped to your current organization workspace.
+              </div>
+              <div ref={messageContainerRef} className="h-80 space-y-4 overflow-y-auto px-5 py-4">
+                {messages.length === 0 ? (
+                  <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+                    Start the conversation with your team. This space is great for quick standups, blockers, and announcements.
+                  </div>
+                ) : (
+                  messages.map((message) => {
+                    const isOwnMessage = message.userId === currentUser.id;
+
+                    return (
+                      <div
+                        key={message.id}
+                        className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
+                      >
+                        <div
+                          className={`max-w-[82%] rounded-[1.6rem] px-4 py-3 shadow-lg ${
+                            isOwnMessage
+                              ? "bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white"
+                              : "border border-white/10 bg-white/8 text-white"
+                          }`}
+                        >
+                          <div className="mb-1 flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] opacity-70">
+                            <span>{isOwnMessage ? "You" : message.userName}</span>
+                            <span>{format(new Date(message.sentAt), "p")}</span>
+                          </div>
+                          <p className="text-sm leading-6">{message.text}</p>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              <div className="border-t border-white/10 bg-black/10 p-4">
+                {errorMessage ? <p className="mb-3 text-xs text-rose-300">{errorMessage}</p> : null}
+                <div className="flex gap-2">
+                  <Input
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    placeholder="Message your team..."
+                    className="border-white/10 bg-white/5 text-white placeholder:text-slate-400"
+                  />
+                  <Button onClick={handleSend} disabled={!draft.trim()} className="bg-white text-slate-950 hover:bg-slate-100">
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3 p-5">
+              {acceptedMembers.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-5 text-sm text-slate-300">
+                  No teammates available in this workspace yet.
+                </div>
+              ) : (
+                acceptedMembers.map((member) => {
+                  const isOnline = onlineMemberIds.has(member.userId);
+                  const isCurrentUser = member.userId === currentUser.id;
 
                   return (
                     <div
-                      key={message.id}
-                      className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
+                      key={member.userId}
+                      className="flex items-center justify-between gap-3 rounded-3xl border border-white/10 bg-white/5 p-4"
                     >
-                      <div
-                        className={`max-w-[82%] rounded-2xl px-4 py-3 ${
-                          isOwnMessage
-                            ? "bg-indigo-600 text-white"
-                            : "bg-slate-100 text-slate-900"
-                        }`}
-                      >
-                        <div className="mb-1 flex items-center gap-2 text-xs opacity-80">
-                          <span>{isOwnMessage ? "You" : message.userName}</span>
-                          <span>{format(new Date(message.sentAt), "p")}</span>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full ${isOnline ? "bg-emerald-400" : "bg-slate-500"}`}
+                          />
+                          <p className="truncate font-medium text-white">
+                            {member.name}
+                            {isCurrentUser ? " (You)" : ""}
+                          </p>
                         </div>
-                        <p className="text-sm leading-6">{message.text}</p>
+                        <p className="mt-1 truncate text-xs uppercase tracking-[0.16em] text-slate-400">
+                          {member.role} · {isOnline ? "online" : "offline"}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-9 w-9 rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10"
+                          disabled={!isOnline || isCurrentUser || Boolean(activeCall)}
+                          onClick={() => startAudioCall(member.userId, member.name)}
+                        >
+                          <PhoneCall className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-9 w-9 rounded-full border border-white/10 bg-white/5 text-white hover:bg-white/10"
+                          disabled={!isOnline || isCurrentUser || Boolean(activeCall)}
+                          onClick={() => startVideoCall(member.userId, member.name)}
+                        >
+                          <Video className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
                   );
                 })
               )}
-          </div>
-
-          <div className="border-t border-slate-200 bg-white p-4">
-            {errorMessage ? <p className="mb-3 text-xs text-rose-600">{errorMessage}</p> : null}
-            <div className="flex gap-2">
-              <Input
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleSend();
-                  }
-                }}
-                placeholder="Message your team..."
-              />
-              <Button onClick={handleSend} disabled={!draft.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
             </div>
-          </div>
+          )}
         </Card>
       ) : null}
 
       <Button
         size="lg"
-        className="relative h-14 rounded-full bg-slate-950 px-5 text-white shadow-xl hover:bg-slate-800"
+        className="h-15 rounded-full border border-white/10 bg-slate-950/95 px-5 text-white shadow-[0_18px_45px_rgba(15,23,42,0.4)] backdrop-blur hover:bg-slate-900"
         onClick={() => setIsOpen((open) => !open)}
       >
         <MessageCircle className="mr-2 h-5 w-5" />
