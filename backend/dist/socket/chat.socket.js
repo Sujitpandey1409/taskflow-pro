@@ -101,7 +101,7 @@ const createChatServer = (server) => {
             });
         });
         socket.on(CHAT_CALL_END_EVENT, (payload) => {
-            const { orgId, fromUserId, fromUserName, targetUserId, videoEnabled } = payload;
+            const { orgId, fromUserId, fromUserName, targetUserId, videoEnabled, reason } = payload;
             if (!orgId || !fromUserId || !fromUserName || !targetUserId) {
                 socket.emit(CHAT_ERROR_EVENT, { message: "Missing call end details" });
                 return;
@@ -112,6 +112,7 @@ const createChatServer = (server) => {
                 fromUserName,
                 targetUserId,
                 videoEnabled,
+                reason,
             });
         });
         socket.on("disconnect", () => {

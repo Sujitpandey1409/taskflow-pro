@@ -4,6 +4,7 @@ import { useState } from "react";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import DashboardHeader from "@/components/dashboard/DashboardHeader";
 import ChatWidget from "@/components/chat/ChatWidget";
+import ChatWidgetBoundary from "@/components/chat/ChatWidgetBoundary";
 
 export default function DashboardLayout({
   children,
@@ -25,7 +26,9 @@ export default function DashboardLayout({
         />
         <main className="flex-1 overflow-y-auto p-6">{children}</main>
       </div>
-      <ChatWidget />
+      <ChatWidgetBoundary>
+        <ChatWidget />
+      </ChatWidgetBoundary>
     </div>
   );
 }

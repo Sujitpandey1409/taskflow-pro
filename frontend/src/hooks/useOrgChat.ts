@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
+import { toast } from "sonner";
 import api from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
 import { useAuthStore } from "@/store/authStore";
 import type {
   ActiveCall,
+  CallEndReason,
   CallSignalPayload,
   ChatMember,
   ChatMessage,
@@ -27,6 +29,24 @@ const rtcConfig: RTCConfiguration = {
   iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
 };
 
+const getDeviceErrorMessage = (error: unknown, videoEnabled: boolean) => {
+  if (error instanceof DOMException) {
+    if (error.name === "NotAllowedError") {
+      return `Microphone${videoEnabled ? " and camera" : ""} access was blocked. Please allow device permissions and try again.`;
+    }
+
+    if (error.name === "NotFoundError") {
+      return `We couldn't find a ${videoEnabled ? "camera or microphone" : "microphone"} on this device.`;
+    }
+
+    if (error.name === "NotReadableError") {
+      return "Your microphone or camera is busy in another app. Close the other app and try again.";
+    }
+  }
+
+  return `We couldn't start the ${videoEnabled ? "video" : "audio"} call on this device.`;
+};
+
 export function useOrgChat() {
   const { user, currentOrg, isAuthenticated } = useAuthStore();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -40,6 +60,8 @@ export function useOrgChat() {
   const socketRef = useRef<Socket | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const pendingOfferRef = useRef<CallSignalPayload | null>(null);
+  const activeCallRef = useRef<ActiveCall | null>(null);
+  const pendingIncomingCallRef = useRef<PendingIncomingCall | null>(null);
 
   const socketUrl = useMemo(
     () => process.env.NEXT_PUBLIC_SOCKET_URL || deriveSocketUrl(process.env.NEXT_PUBLIC_API_URL),
@@ -80,6 +102,14 @@ export function useOrgChat() {
     setActiveCall(null);
   }, [cleanupPeerConnection, cleanupStreams]);
 
+  useEffect(() => {
+    activeCallRef.current = activeCall;
+  }, [activeCall]);
+
+  useEffect(() => {
+    pendingIncomingCallRef.current = pendingIncomingCall;
+  }, [pendingIncomingCall]);
+
   const createPeerConnection = useCallback(
     (partnerUserId: string, partnerUserName: string, videoEnabled: boolean) => {
       const peerConnection = new RTCPeerConnection(rtcConfig);
@@ -103,6 +133,7 @@ export function useOrgChat() {
         const [stream] = event.streams;
         if (stream) {
           setRemoteStream(stream);
+          toast.success(`${partnerUserName} joined the call.`);
           setActiveCall((current) =>
             current
               ? { ...current, status: "connected" }
@@ -179,10 +210,12 @@ export function useOrgChat() {
 
     socket.on("chat:error", (payload: { message: string }) => {
       setErrorMessage(payload.message);
+      toast.error(payload.message);
     });
 
     socket.on("chat:call:offer", (payload: CallSignalPayload) => {
       pendingOfferRef.current = payload;
+      toast.info(`${payload.fromUserName} is calling you.`);
       setPendingIncomingCall({
         fromUserId: payload.fromUserId,
         fromUserName: payload.fromUserName,
@@ -218,7 +251,22 @@ export function useOrgChat() {
       }
     });
 
-    socket.on("chat:call:end", () => {
+    socket.on("chat:call:end", (payload: CallSignalPayload) => {
+      const partnerName =
+        activeCallRef.current?.partnerUserName ||
+        pendingIncomingCallRef.current?.fromUserName ||
+        payload.fromUserName ||
+        "Your teammate";
+
+      if (payload.reason === "declined") {
+        toast.info(`${partnerName} declined the call.`);
+      } else if (payload.reason === "failed") {
+        toast.error(`The call with ${partnerName} ended because of a device or connection issue.`);
+      } else {
+        toast.info(`The call with ${partnerName} has ended.`);
+      }
+
+      pendingOfferRef.current = null;
       resetCallState();
     });
 
@@ -251,31 +299,42 @@ export function useOrgChat() {
       return;
     }
 
-    resetCallState();
+    try {
+      resetCallState();
 
-    const stream = await getMediaStream(videoEnabled);
-    const peerConnection = createPeerConnection(targetUserId, targetUserName, videoEnabled);
-    attachLocalTracks(peerConnection, stream);
+      const stream = await getMediaStream(videoEnabled);
+      const peerConnection = createPeerConnection(targetUserId, targetUserName, videoEnabled);
+      attachLocalTracks(peerConnection, stream);
 
-    setActiveCall({
-      partnerUserId: targetUserId,
-      partnerUserName: targetUserName,
-      videoEnabled,
-      direction: "outgoing",
-      status: "ringing",
-    });
+      setErrorMessage(null);
+      setActiveCall({
+        partnerUserId: targetUserId,
+        partnerUserName: targetUserName,
+        videoEnabled,
+        direction: "outgoing",
+        status: "ringing",
+      });
 
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
+      toast.info(`Calling ${targetUserName}...`);
 
-    socketRef.current.emit("chat:call:offer", {
-      orgId: currentOrg.id,
-      fromUserId: user.id,
-      fromUserName: user.name,
-      targetUserId,
-      videoEnabled,
-      sdp: offer,
-    });
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+
+      socketRef.current.emit("chat:call:offer", {
+        orgId: currentOrg.id,
+        fromUserId: user.id,
+        fromUserName: user.name,
+        targetUserId,
+        videoEnabled,
+        sdp: offer,
+      });
+    } catch (error) {
+      const nextMessage = getDeviceErrorMessage(error, videoEnabled);
+      setErrorMessage(nextMessage);
+      pendingOfferRef.current = null;
+      resetCallState();
+      toast.error(nextMessage);
+    }
   };
 
   const acceptIncomingCall = async () => {
@@ -284,35 +343,53 @@ export function useOrgChat() {
     }
 
     const offerPayload = pendingOfferRef.current;
-    const stream = await getMediaStream(offerPayload.videoEnabled);
-    const peerConnection = createPeerConnection(
-      offerPayload.fromUserId,
-      offerPayload.fromUserName,
-      offerPayload.videoEnabled
-    );
-    attachLocalTracks(peerConnection, stream);
 
-    await peerConnection.setRemoteDescription(new RTCSessionDescription(offerPayload.sdp));
-    const answer = await peerConnection.createAnswer();
-    await peerConnection.setLocalDescription(answer);
+    try {
+      const stream = await getMediaStream(offerPayload.videoEnabled);
+      const peerConnection = createPeerConnection(
+        offerPayload.fromUserId,
+        offerPayload.fromUserName,
+        offerPayload.videoEnabled
+      );
+      attachLocalTracks(peerConnection, stream);
 
-    socketRef.current.emit("chat:call:answer", {
-      orgId: currentOrg.id,
-      fromUserId: user.id,
-      fromUserName: user.name,
-      targetUserId: offerPayload.fromUserId,
-      videoEnabled: offerPayload.videoEnabled,
-      sdp: answer,
-    });
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(offerPayload.sdp));
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
 
-    setPendingIncomingCall(null);
-    setActiveCall({
-      partnerUserId: offerPayload.fromUserId,
-      partnerUserName: offerPayload.fromUserName,
-      videoEnabled: offerPayload.videoEnabled,
-      direction: "incoming",
-      status: "connecting",
-    });
+      socketRef.current.emit("chat:call:answer", {
+        orgId: currentOrg.id,
+        fromUserId: user.id,
+        fromUserName: user.name,
+        targetUserId: offerPayload.fromUserId,
+        videoEnabled: offerPayload.videoEnabled,
+        sdp: answer,
+      });
+
+      setErrorMessage(null);
+      setPendingIncomingCall(null);
+      setActiveCall({
+        partnerUserId: offerPayload.fromUserId,
+        partnerUserName: offerPayload.fromUserName,
+        videoEnabled: offerPayload.videoEnabled,
+        direction: "incoming",
+        status: "connecting",
+      });
+    } catch (error) {
+      const nextMessage = getDeviceErrorMessage(error, offerPayload.videoEnabled);
+      setErrorMessage(nextMessage);
+      socketRef.current.emit("chat:call:end", {
+        orgId: currentOrg.id,
+        fromUserId: user.id,
+        fromUserName: user.name,
+        targetUserId: offerPayload.fromUserId,
+        videoEnabled: offerPayload.videoEnabled,
+        reason: "failed",
+      });
+      pendingOfferRef.current = null;
+      resetCallState();
+      toast.error(nextMessage);
+    }
   };
 
   const declineIncomingCall = () => {
@@ -328,14 +405,16 @@ export function useOrgChat() {
       fromUserName: user.name,
       targetUserId: pendingOfferRef.current.fromUserId,
       videoEnabled: pendingOfferRef.current.videoEnabled,
+      reason: "declined",
     });
 
+    toast.info(`You declined ${pendingOfferRef.current.fromUserName}'s call.`);
     pendingOfferRef.current = null;
     setPendingIncomingCall(null);
     setActiveCall(null);
   };
 
-  const endCall = () => {
+  const endCall = (reason: CallEndReason = "ended") => {
     if (socketRef.current && currentOrg && user && activeCall) {
       socketRef.current.emit("chat:call:end", {
         orgId: currentOrg.id,
@@ -343,7 +422,12 @@ export function useOrgChat() {
         fromUserName: user.name,
         targetUserId: activeCall.partnerUserId,
         videoEnabled: activeCall.videoEnabled,
+        reason,
       });
+    }
+
+    if (activeCall) {
+      toast.info(`You ended the call with ${activeCall.partnerUserName}.`);
     }
 
     pendingOfferRef.current = null;

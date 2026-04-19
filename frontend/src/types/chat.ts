@@ -12,6 +12,8 @@ export type ChatMember = {
   userName: string;
 };
 
+export type CallEndReason = "ended" | "declined" | "failed";
+
 export type CallSignalPayload = {
   orgId: string;
   fromUserId: string;
@@ -20,6 +22,7 @@ export type CallSignalPayload = {
   videoEnabled: boolean;
   sdp?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
+  reason?: CallEndReason;
 };
 
 export type PendingIncomingCall = {

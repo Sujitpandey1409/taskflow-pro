@@ -8,6 +8,7 @@ import {
   getSocketIdsForUser,
   removeMemberFromRoom,
 } from "./chat.store";
+import type { CallSignalPayload } from "./chat.types";
 
 type JoinPayload = {
   orgId: string;
@@ -20,16 +21,6 @@ type MessagePayload = {
   userId: string;
   userName: string;
   text: string;
-};
-
-type CallSignalPayload = {
-  orgId: string;
-  fromUserId: string;
-  fromUserName: string;
-  targetUserId: string;
-  videoEnabled: boolean;
-  sdp?: RTCSessionDescriptionInit;
-  candidate?: RTCIceCandidateInit;
 };
 
 const CHAT_PRESENCE_EVENT = "chat:presence";
@@ -55,7 +46,12 @@ export const createChatServer = (server: HttpServer) => {
   io.on("connection", (socket) => {
     let currentOrgId: string | null = null;
 
-    const emitToTargetUser = (orgId: string, targetUserId: string, eventName: string, payload: CallSignalPayload) => {
+    const emitToTargetUser = (
+      orgId: string,
+      targetUserId: string,
+      eventName: string,
+      payload: CallSignalPayload
+    ) => {
       const targetSocketIds = getSocketIdsForUser(orgId, targetUserId);
 
       targetSocketIds.forEach((targetSocketId) => {
@@ -152,7 +148,7 @@ export const createChatServer = (server: HttpServer) => {
     });
 
     socket.on(CHAT_CALL_END_EVENT, (payload: CallSignalPayload) => {
-      const { orgId, fromUserId, fromUserName, targetUserId, videoEnabled } = payload;
+      const { orgId, fromUserId, fromUserName, targetUserId, videoEnabled, reason } = payload;
 
       if (!orgId || !fromUserId || !fromUserName || !targetUserId) {
         socket.emit(CHAT_ERROR_EVENT, { message: "Missing call end details" });
@@ -165,6 +161,7 @@ export const createChatServer = (server: HttpServer) => {
         fromUserName,
         targetUserId,
         videoEnabled,
+        reason,
       });
     });
 

@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import {
   MessageCircle,
@@ -86,6 +86,10 @@ export default function ChatWidget() {
   const [draft, setDraft] = useState("");
   const [activeTab, setActiveTab] = useState<"chat" | "people">("chat");
   const messageContainerRef = useRef<HTMLDivElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const ringtoneTimerRef = useRef<number | null>(null);
+  const previousEngagementRef = useRef(false);
+  const previousConnectedRef = useRef(false);
 
   useEffect(() => {
     if (messageContainerRef.current) {
@@ -111,6 +115,132 @@ export default function ChatWidget() {
     return `${onlineMembers.length} teammates online`;
   }, [onlineMembers.length]);
 
+  const isRinging = Boolean(pendingIncomingCall) || activeCall?.status === "ringing";
+  const isCallEngaged = Boolean(pendingIncomingCall || activeCall);
+
+  const getAudioContext = useCallback(async () => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    const AudioContextCtor =
+      window.AudioContext ||
+      (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+    if (!AudioContextCtor) {
+      return null;
+    }
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new AudioContextCtor();
+    }
+
+    if (audioContextRef.current.state === "suspended") {
+      await audioContextRef.current.resume();
+    }
+
+    return audioContextRef.current;
+  }, []);
+
+  const playTonePattern = useCallback(
+    async (pattern: Array<{ frequency: number; duration: number; delay?: number }>) => {
+      const audioContext = await getAudioContext();
+
+      if (!audioContext) {
+        return;
+      }
+
+      let cursor = audioContext.currentTime;
+
+      pattern.forEach(({ frequency, duration, delay = 0 }) => {
+        cursor += delay;
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(frequency, cursor);
+        gainNode.gain.setValueAtTime(0.0001, cursor);
+        gainNode.gain.exponentialRampToValueAtTime(0.04, cursor + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.0001, cursor + duration);
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.start(cursor);
+        oscillator.stop(cursor + duration + 0.03);
+
+        cursor += duration;
+      });
+    },
+    [getAudioContext]
+  );
+
+  const stopRingtone = useCallback(() => {
+    if (typeof window !== "undefined" && ringtoneTimerRef.current !== null) {
+      window.clearInterval(ringtoneTimerRef.current);
+      ringtoneTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isRinging) {
+      stopRingtone();
+      return;
+    }
+
+    if (typeof window === "undefined" || ringtoneTimerRef.current !== null) {
+      return;
+    }
+
+    void playTonePattern([
+      { frequency: 740, duration: 0.16 },
+      { frequency: 880, duration: 0.16, delay: 0.08 },
+    ]);
+
+    ringtoneTimerRef.current = window.setInterval(() => {
+      void playTonePattern([
+        { frequency: 740, duration: 0.16 },
+        { frequency: 880, duration: 0.16, delay: 0.08 },
+      ]);
+    }, 1800);
+
+    return () => {
+      stopRingtone();
+    };
+  }, [isRinging, playTonePattern, stopRingtone]);
+
+  useEffect(() => {
+    if (previousEngagementRef.current && !isCallEngaged) {
+      void playTonePattern([
+        { frequency: 620, duration: 0.08 },
+        { frequency: 480, duration: 0.14, delay: 0.04 },
+      ]);
+    }
+
+    previousEngagementRef.current = isCallEngaged;
+  }, [isCallEngaged, playTonePattern]);
+
+  useEffect(() => {
+    const isConnected = activeCall?.status === "connected";
+
+    if (!previousConnectedRef.current && isConnected) {
+      void playTonePattern([
+        { frequency: 620, duration: 0.08 },
+        { frequency: 820, duration: 0.08, delay: 0.03 },
+      ]);
+    }
+
+    previousConnectedRef.current = isConnected;
+  }, [activeCall?.status, playTonePattern]);
+
+  useEffect(() => {
+    return () => {
+      stopRingtone();
+      audioContextRef.current?.close().catch(() => undefined);
+      audioContextRef.current = null;
+    };
+  }, [stopRingtone]);
+
   const handleSend = () => {
     if (!draft.trim()) {
       return;
@@ -125,7 +255,7 @@ export default function ChatWidget() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-[2147483000] flex max-h-[calc(100vh-1.5rem)] w-[min(calc(100vw-1rem),26rem)] flex-col items-end gap-3 sm:bottom-5 sm:right-5 sm:w-[26rem]">
+    <div className="fixed bottom-3 right-3 z-[2147483000] flex max-h-[calc(100vh-0.75rem)] w-[min(calc(100vw-0.75rem),34rem)] flex-col items-end gap-3 sm:bottom-5 sm:right-5 sm:max-h-[calc(100vh-1.5rem)] sm:w-[30rem] lg:w-[34rem]">
       {pendingIncomingCall ? (
         <Card className="w-full border-0 bg-gradient-to-br from-rose-500 via-fuchsia-600 to-indigo-700 p-5 text-white shadow-2xl">
           <p className="text-xs uppercase tracking-[0.25em] text-white/70">Incoming call</p>
@@ -145,15 +275,15 @@ export default function ChatWidget() {
       ) : null}
 
       {isOpen ? (
-        <Card className="flex max-h-[min(44rem,calc(100vh-6.5rem))] w-full flex-col overflow-hidden border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.2),_rgba(15,23,42,1)_45%)] text-white shadow-[0_24px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl">
-          <div className="border-b border-white/10 px-5 py-5">
+        <Card className="flex max-h-[min(48rem,calc(100vh-5.75rem))] w-full flex-col overflow-hidden border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.2),_rgba(15,23,42,1)_45%)] text-white shadow-[0_24px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl">
+          <div className="border-b border-white/10 px-4 py-4 sm:px-5 sm:py-5">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2">
                   <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-300">Collab hub</p>
                   <Badge className="border-0 bg-white/10 text-white hover:bg-white/10">{currentOrg.name}</Badge>
                 </div>
-                <h2 className="mt-3 text-2xl font-semibold tracking-tight">Team chat and calls</h2>
+                <h2 className="mt-3 text-xl font-semibold tracking-tight sm:text-2xl">Team chat and calls</h2>
                 <div className="mt-3 flex items-center gap-2 text-sm text-slate-300">
                   {isConnected ? <Wifi className="h-4 w-4 text-emerald-400" /> : <WifiOff className="h-4 w-4 text-rose-400" />}
                   <span>{isConnected ? onlineLabel : "Realtime reconnecting..."}</span>
@@ -200,13 +330,13 @@ export default function ChatWidget() {
                     {activeCall.videoEnabled ? "Video call" : "Audio call"} · {activeCall.status}
                   </p>
                 </div>
-                <Button size="icon" className="bg-rose-500 hover:bg-rose-600" onClick={endCall}>
+                <Button size="icon" className="bg-rose-500 hover:bg-rose-600" onClick={() => endCall()}>
                   <PhoneOff className="h-4 w-4" />
                 </Button>
               </div>
 
               {activeCall.videoEnabled ? (
-                <div className="grid gap-3 md:grid-cols-2">
+                <div className="grid gap-3 lg:grid-cols-2">
                   <VideoTile label="You" stream={localStream} muted mirrored />
                   <VideoTile label={activeCall.partnerUserName} stream={remoteStream} />
                 </div>
@@ -226,10 +356,10 @@ export default function ChatWidget() {
 
           {activeTab === "chat" ? (
             <>
-              <div className="shrink-0 border-b border-white/10 bg-white/5 px-5 py-3 text-sm text-slate-300">
+              <div className="shrink-0 border-b border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-300 sm:px-5">
                 Messages stay scoped to your current organization workspace.
               </div>
-              <div ref={messageContainerRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+              <div ref={messageContainerRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
                 {messages.length === 0 ? (
                   <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-5 text-sm text-slate-300">
                     Start the conversation with your team. This space is great for quick standups, blockers, and announcements.
@@ -244,7 +374,7 @@ export default function ChatWidget() {
                         className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`max-w-[82%] rounded-[1.6rem] px-4 py-3 shadow-lg ${
+                          className={`max-w-[86%] rounded-[1.6rem] px-4 py-3 shadow-lg ${
                             isOwnMessage
                               ? "bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white"
                               : "border border-white/10 bg-white/8 text-white"
@@ -283,7 +413,7 @@ export default function ChatWidget() {
               </div>
             </>
           ) : (
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4 sm:p-5">
               {acceptedMembers.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-5 text-sm text-slate-300">
                   No teammates available in this workspace yet.
@@ -347,7 +477,8 @@ export default function ChatWidget() {
         onClick={() => setIsOpen((open) => !open)}
       >
         <MessageCircle className="mr-2 h-5 w-5" />
-        Team Chat
+        <span className="hidden sm:inline">Team Chat</span>
+        <span className="sm:hidden">Chat</span>
       </Button>
     </div>
   );
