@@ -125,9 +125,9 @@ export default function ChatWidget() {
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-[2147483000] flex flex-col items-end gap-3">
+    <div className="fixed bottom-4 right-4 z-[2147483000] flex max-h-[calc(100vh-1.5rem)] w-[min(calc(100vw-1rem),26rem)] flex-col items-end gap-3 sm:bottom-5 sm:right-5 sm:w-[26rem]">
       {pendingIncomingCall ? (
-        <Card className="w-[360px] border-0 bg-gradient-to-br from-rose-500 via-fuchsia-600 to-indigo-700 p-5 text-white shadow-2xl">
+        <Card className="w-full border-0 bg-gradient-to-br from-rose-500 via-fuchsia-600 to-indigo-700 p-5 text-white shadow-2xl">
           <p className="text-xs uppercase tracking-[0.25em] text-white/70">Incoming call</p>
           <h3 className="mt-3 text-2xl font-semibold">{pendingIncomingCall.fromUserName}</h3>
           <p className="mt-2 text-sm text-white/80">
@@ -145,7 +145,7 @@ export default function ChatWidget() {
       ) : null}
 
       {isOpen ? (
-        <Card className="w-[420px] overflow-hidden border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.2),_rgba(15,23,42,1)_45%)] text-white shadow-[0_24px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl">
+        <Card className="flex max-h-[min(44rem,calc(100vh-6.5rem))] w-full flex-col overflow-hidden border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.2),_rgba(15,23,42,1)_45%)] text-white shadow-[0_24px_80px_rgba(15,23,42,0.45)] backdrop-blur-xl">
           <div className="border-b border-white/10 px-5 py-5">
             <div className="flex items-start justify-between gap-3">
               <div>
@@ -192,7 +192,7 @@ export default function ChatWidget() {
           </div>
 
           {activeCall ? (
-            <div className="space-y-4 border-b border-white/10 bg-black/15 p-4">
+            <div className="shrink-0 space-y-4 border-b border-white/10 bg-black/15 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <p className="text-sm font-semibold text-white">{activeCall.partnerUserName}</p>
@@ -226,10 +226,10 @@ export default function ChatWidget() {
 
           {activeTab === "chat" ? (
             <>
-              <div className="border-b border-white/10 bg-white/5 px-5 py-3 text-sm text-slate-300">
+              <div className="shrink-0 border-b border-white/10 bg-white/5 px-5 py-3 text-sm text-slate-300">
                 Messages stay scoped to your current organization workspace.
               </div>
-              <div ref={messageContainerRef} className="h-80 space-y-4 overflow-y-auto px-5 py-4">
+              <div ref={messageContainerRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
                 {messages.length === 0 ? (
                   <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-5 text-sm text-slate-300">
                     Start the conversation with your team. This space is great for quick standups, blockers, and announcements.
@@ -261,7 +261,7 @@ export default function ChatWidget() {
                   })
                 )}
               </div>
-              <div className="border-t border-white/10 bg-black/10 p-4">
+              <div className="shrink-0 border-t border-white/10 bg-black/10 p-4">
                 {errorMessage ? <p className="mb-3 text-xs text-rose-300">{errorMessage}</p> : null}
                 <div className="flex gap-2">
                   <Input
@@ -283,7 +283,7 @@ export default function ChatWidget() {
               </div>
             </>
           ) : (
-            <div className="space-y-3 p-5">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
               {acceptedMembers.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-white/10 bg-white/5 p-5 text-sm text-slate-300">
                   No teammates available in this workspace yet.
@@ -343,7 +343,7 @@ export default function ChatWidget() {
 
       <Button
         size="lg"
-        className="h-15 rounded-full border border-white/10 bg-slate-950/95 px-5 text-white shadow-[0_18px_45px_rgba(15,23,42,0.4)] backdrop-blur hover:bg-slate-900"
+        className="h-14 rounded-full border border-white/10 bg-slate-950/95 px-5 text-white shadow-[0_18px_45px_rgba(15,23,42,0.4)] backdrop-blur hover:bg-slate-900"
         onClick={() => setIsOpen((open) => !open)}
       >
         <MessageCircle className="mr-2 h-5 w-5" />

@@ -5,18 +5,44 @@ import { useAuthStore } from "@/store/authStore";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
-export default function DashboardHeader() {
+type DashboardHeaderProps = {
+  isSidebarCollapsed: boolean;
+  onToggleSidebar: () => void;
+};
+
+export default function DashboardHeader({
+  isSidebarCollapsed,
+  onToggleSidebar,
+}: DashboardHeaderProps) {
   const { user, currentOrg } = useAuthStore();
 
   return (
     <header className="bg-white border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            className="hidden lg:inline-flex"
+            onClick={onToggleSidebar}
+            aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isSidebarCollapsed ? (
+              <PanelLeftOpen className="h-4 w-4" />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" />
+            )}
+          </Button>
+
+          <div>
           <h1 className="text-2xl font-semibold text-gray-900">
             {currentOrg?.name}
           </h1>
           <p className="text-sm text-gray-500">Multi-tenant workspace</p>
+          </div>
         </div>
 
         <DropdownMenu>
