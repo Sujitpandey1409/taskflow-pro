@@ -26,15 +26,15 @@ export default function SettingsPage() {
   const { currentOrg, user } = useAuthStore();
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="mx-auto max-w-6xl space-y-6 sm:space-y-8">
       <div>
-        <h1 className="text-4xl font-bold text-gray-900">Settings</h1>
-        <p className="mt-2 text-lg text-gray-600">
+        <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Settings</h1>
+        <p className="mt-2 text-base text-gray-600 sm:text-lg">
           A clean home for workspace configuration as the product matures.
         </p>
       </div>
 
-      <Card className="border-gray-200 p-8 shadow-sm">
+      <Card className="border-gray-200 p-5 shadow-sm sm:p-8">
         <div className="flex items-center gap-3 text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">
           <Workflow className="h-4 w-4" />
           Current workspace snapshot
@@ -55,7 +55,7 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
         {settingsCards.map((item) => {
           const Icon = item.icon;
           return (

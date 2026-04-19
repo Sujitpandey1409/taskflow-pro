@@ -74,23 +74,23 @@ export default function TasksPage() {
   };
 
   if (isLoading) {
-    return <div className="p-10 text-center text-gray-500">Loading tasks...</div>;
+    return <div className="p-6 text-center text-gray-500 sm:p-10">Loading tasks...</div>;
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-8 flex items-center justify-between">
+    <div>
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900">Tasks</h1>
-          <p className="mt-2 text-lg text-gray-600">Drag and drop to update status</p>
+          <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Tasks</h1>
+          <p className="mt-2 text-base text-gray-600 sm:text-lg">Drag and drop to update status</p>
         </div>
         <CreateTaskDialog />
       </div>
 
       <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="flex gap-6 overflow-x-auto pb-6">
+        <div className="grid grid-cols-1 gap-4 pb-6 lg:grid-cols-3 lg:gap-6">
           {columns.map((column) => (
-            <div key={column.id} className={`min-w-80 rounded-xl p-4 ${column.color}`}>
+            <div key={column.id} className={`rounded-xl p-4 ${column.color}`}>
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="font-semibold text-gray-800">{column.title}</h3>
                 <Badge variant="secondary">
@@ -101,7 +101,7 @@ export default function TasksPage() {
               <Droppable droppableId={column.id}>
                 {(provided) => (
                   <div
-                    className="min-h-96 space-y-3"
+                    className="min-h-44 space-y-3 sm:min-h-72 lg:min-h-96"
                     ref={provided.innerRef}
                     {...provided.droppableProps}
                   >
@@ -117,7 +117,7 @@ export default function TasksPage() {
                               className="cursor-grab bg-white p-4 shadow-sm transition-shadow hover:shadow-md active:cursor-grabbing"
                             >
                               <div className="mb-2 flex items-start justify-between">
-                                <h4 className="font-medium">{task.title}</h4>
+                                <h4 className="pr-2 font-medium">{task.title}</h4>
                                 <div className="flex items-center gap-1">
                                   <EditTaskDialog task={task} />
                                   <GripVertical className="h-5 w-5 text-gray-400" />

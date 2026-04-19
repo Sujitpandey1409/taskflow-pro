@@ -18,7 +18,8 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://taskflow-pro-sujit.vercel.app"
+      "https://taskflow-pro-sujit.vercel.app",
+      "http://10.186.82.102:3000"
     ],
     credentials: true
   })

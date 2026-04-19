@@ -19,7 +19,7 @@ export default function DashboardHeader({
   const { user, currentOrg } = useAuthStore();
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
+    <header className="border-b border-gray-200 bg-white px-4 py-4 pl-16 sm:px-6 sm:pl-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Button
@@ -37,11 +37,11 @@ export default function DashboardHeader({
             )}
           </Button>
 
-          <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {currentOrg?.name}
-          </h1>
-          <p className="text-sm text-gray-500">Multi-tenant workspace</p>
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-semibold text-gray-900 sm:text-2xl">
+              {currentOrg?.name}
+            </h1>
+            <p className="text-xs text-gray-500 sm:text-sm">Multi-tenant workspace</p>
           </div>
         </div>
 

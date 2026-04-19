@@ -69,18 +69,18 @@ export default function TeamPage() {
   });
 
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      <div className="flex items-start justify-between gap-4">
+    <div className="mx-auto max-w-6xl space-y-6 sm:space-y-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900">Team</h1>
-          <p className="mt-2 text-lg text-gray-600">
+          <h1 className="text-3xl font-bold text-gray-900 sm:text-4xl">Team</h1>
+          <p className="mt-2 text-base text-gray-600 sm:text-lg">
             Invite teammates by email, track pending invitations, and see who already belongs to this organization.
           </p>
         </div>
-        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Invite flow active</Badge>
+        <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100 sm:self-start">Invite flow active</Badge>
       </div>
 
-      <Card className="border-gray-200 p-6 shadow-sm">
+      <Card className="border-gray-200 p-5 shadow-sm sm:p-6">
         <div className="flex items-center gap-3">
           <MailPlus className="h-5 w-5 text-indigo-600" />
           <h2 className="text-2xl font-semibold text-gray-900">Invite teammate</h2>
@@ -111,14 +111,14 @@ export default function TeamPage() {
           <Button
             onClick={() => inviteMutation.mutate()}
             disabled={!email.trim() || inviteMutation.isPending}
-            className="bg-indigo-600 hover:bg-indigo-700"
+            className="w-full bg-indigo-600 hover:bg-indigo-700 md:w-auto"
           >
             {inviteMutation.isPending ? "Inviting..." : "Send Invite"}
           </Button>
         </div>
       </Card>
 
-      <div className="grid gap-6 md:grid-cols-3">
+      <div className="grid gap-4 sm:gap-6 md:grid-cols-3">
         {roleGuide.map((roleItem) => (
           <Card key={roleItem.title} className="border-gray-200 p-6 shadow-sm">
             <ShieldCheck className="mb-4 h-8 w-8 text-indigo-600" />
@@ -128,8 +128,8 @@ export default function TeamPage() {
         ))}
       </div>
 
-      <Card className="border-gray-200 p-8 shadow-sm">
-        <div className="flex items-center gap-3 mb-6">
+      <Card className="border-gray-200 p-5 shadow-sm sm:p-8">
+        <div className="mb-6 flex items-center gap-3">
           <Users className="h-5 w-5 text-indigo-600" />
           <h2 className="text-2xl font-semibold text-gray-900">Organization members</h2>
         </div>

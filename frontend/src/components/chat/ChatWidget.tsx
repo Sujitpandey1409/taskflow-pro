@@ -255,7 +255,7 @@ export default function ChatWidget() {
   }
 
   return (
-    <div className="fixed bottom-3 right-3 z-[2147483000] flex max-h-[calc(100vh-0.75rem)] w-[min(calc(100vw-0.75rem),34rem)] flex-col items-end gap-3 sm:bottom-5 sm:right-5 sm:max-h-[calc(100vh-1.5rem)] sm:w-[30rem] lg:w-[34rem]">
+    <div className="fixed bottom-3 right-3 z-[2147483000] flex max-h-[calc(100vh-0.75rem)] w-[min(calc(100vw-0.75rem),40rem)] flex-col items-end gap-3 sm:bottom-5 sm:right-5 sm:max-h-[calc(100vh-1.5rem)] sm:w-[34rem] xl:w-[40rem]">
       {pendingIncomingCall ? (
         <Card className="w-full border-0 bg-gradient-to-br from-rose-500 via-fuchsia-600 to-indigo-700 p-5 text-white shadow-2xl">
           <p className="text-xs uppercase tracking-[0.25em] text-white/70">Incoming call</p>
@@ -374,7 +374,7 @@ export default function ChatWidget() {
                         className={`flex ${isOwnMessage ? "justify-end" : "justify-start"}`}
                       >
                         <div
-                          className={`max-w-[86%] rounded-[1.6rem] px-4 py-3 shadow-lg ${
+                          className={`max-w-[90%] rounded-[1.6rem] px-4 py-3 shadow-lg sm:max-w-[86%] ${
                             isOwnMessage
                               ? "bg-gradient-to-br from-indigo-500 to-fuchsia-500 text-white"
                               : "border border-white/10 bg-white/8 text-white"

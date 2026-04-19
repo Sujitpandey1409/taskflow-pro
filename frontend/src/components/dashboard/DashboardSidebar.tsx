@@ -159,12 +159,12 @@ export default function DashboardSidebar({
           <Button
             variant="outline"
             size="icon"
-            className="fixed top-4 left-4 z-50 lg:hidden"
+            className="fixed left-4 top-4 z-50 lg:hidden"
           >
             <Menu className="h-6 w-6" />
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="p-0 w-64">
+        <SheetContent side="left" className="w-[min(20rem,88vw)] p-0">
           <SidebarNavContent
             currentOrgName={currentOrg?.name}
             userName={user?.name}
