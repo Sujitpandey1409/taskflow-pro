@@ -353,7 +353,7 @@ export function useOrgChat() {
       );
       attachLocalTracks(peerConnection, stream);
 
-      await peerConnection.setRemoteDescription(new RTCSessionDescription(offerPayload.sdp));
+      await peerConnection.setRemoteDescription(new RTCSessionDescription(offerPayload.sdp!));
       const answer = await peerConnection.createAnswer();
       await peerConnection.setLocalDescription(answer);
 
