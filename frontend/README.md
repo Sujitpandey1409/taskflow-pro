@@ -1,83 +1,76 @@
-# TaskFlow Pro — Multi-Tenant Task Management SaaS
+﻿# TaskFlow Pro Frontend
 
-**Full-Stack MERN + Next.js 14 App Router | Production-Grade | Real Multi-Tenancy**
+This is the Next.js frontend for TaskFlow Pro. It provides the authenticated dashboard experience for projects, tasks, team management, settings, and the floating organization chat/calling widget.
 
-- **Live Demo:** [https://taskflow-pro.vercel.app](https://taskflow-pro.vercel.app) (coming after deploy)
-- **Backend Repo:** [https://github.com/Sujitpandey1409/taskflow-pro](...)
+## Frontend Features
 
-![TaskFlow Pro Dashboard](screenshots/dashboard.png)
-![Projects Page](screenshots/projects.png)
-![Beautiful Login](screenshots/login.png)
-
-## Features
-
-- **Database-per-Organization** — True multi-tenancy
-- **RBAC** (Owner / Admin / Member) with invite system
-- **Secure Auth** — JWT + HttpOnly Refresh Tokens + Auto-refresh
-- **Real-time Ready** — Built for Socket.io
-- **Next.js 14 App Router + Tailwind + shadcn/ui + Sonner + Zustand + TanStack Query**
-- **Middleware Protection** — Optimized routing logic
-- **Zod Validation** — Client & server-side ready
-- **Modern UI** — Geist Font + Gradient Design
+- Next.js App Router dashboard with shared responsive shell
+- Collapsible desktop sidebar and mobile sheet navigation
+- Organization-aware auth session handling
+- Project list and project detail views
+- Task board with drag-and-drop status changes
+- Reusable create/edit task dialogs
+- Team page for invites and membership visibility
+- Floating realtime chat with presence, toasts, and 1:1 audio/video calls
+- Responsive layout tuned for desktop and mobile use
 
 ## Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14 (App Router), TypeScript, Tailwind, shadcn/ui, Sonner |
-| State Management | Zustand + TanStack Query |
-| Backend | Node.js, Express, MongoDB, Mongoose |
-| Authentication | JWT + HttpOnly Cookies + Refresh Tokens |
-| Multi-Tenancy | One database per organization |
-| Validation | Zod |
-| Deployment | Vercel (frontend), Render/Railway (backend) |
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS
+- shadcn/ui
+- Zustand
+- TanStack Query
+- Sonner
+- Socket.IO client
 
-## Screenshots
-
-<div align="center">
-    <img src="screenshots/login.png" width="49%" alt="Login" />
-    <img src="screenshots/register.png" width="49%" alt="Register" />
-    <img src="screenshots/dashboard.png" width="100%" alt="Dashboard" />
-    <img src="screenshots/projects.png" width="100%" alt="Projects" />
-    <img src="screenshots/sidebar-mobile.png" width="32%" alt="Mobile Menu" />
-</div>
-
-## Project Structure
-
-```
-taskflow-pro/
-├── backend/          # Express + MongoDB (multi-tenant)
-├── frontend/         # Next.js 14 + Tailwind + shadcn/ui
-├── screenshots/      # UI previews
-└── README.md         # Documentation
-```
-
-## Why This Project Stands Out
-
-- Not a tutorial clone
-- Real SaaS architecture (like ClickUp, Linear, Notion)
-- Production-ready security & UX
-- Beautiful, modern, responsive UI
-- Fully tested API with Postman collection
-- Works in 5 seconds
-
-## Quick Start
+## Local Setup
 
 ```bash
-# Backend
-cd backend && npm install && npm run dev
-
-# Frontend
-cd frontend && npm install && npm run dev
+cd frontend
+npm install
+npm run dev
 ```
 
-Visit: http://localhost:3000
+Create `.env.local`:
 
-## Upcoming Features
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000/api
+NEXT_PUBLIC_SOCKET_URL=http://localhost:5000
+```
 
-- Kanban Task Board (Drag & Drop)
-- Real-time Comments (Socket.io)
-- File Uploads (S3 Presigned URLs)
-- Dark Mode Toggle
-- Mobile PWA
-- Production Deployment (Vercel + Render)
+Then open `http://localhost:3000`.
+
+## Main App Areas
+
+```text
+src/app/
+├── (auth)/             # Login and register pages
+├── dashboard/          # Dashboard, projects, tasks, team, settings
+└── providers.tsx       # Query client, toaster, auth bootstrap
+
+src/components/
+├── chat/               # Floating chat widget and boundary
+├── dashboard/          # Header, sidebar, dashboard home
+├── projects/           # Project UI pieces
+├── tasks/              # Task dialogs and task form fields
+└── ui/                 # Shared UI primitives
+```
+
+## Notes
+
+- Query keys are scoped by organization so cached data does not bleed across workspaces.
+- The dashboard shell is shared across authenticated routes.
+- Chat and call UI is org-scoped, but chat persistence is not implemented yet.
+- For production deployments with separate frontend/backend domains, auth may need a proxy or shared parent domain strategy.
+
+## Useful Commands
+
+```bash
+npm run dev
+npm run lint
+npm run build
+npm run start
+```
