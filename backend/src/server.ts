@@ -13,14 +13,17 @@ import taskRoutes from './routes/task.routes';
 
 const app = express();
 const server = createServer(app);
+const defaultAllowedOrigins = [
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+];
+const allowedOrigins = (
+  process.env.CORS_ORIGINS?.split(',').map((origin) => origin.trim()).filter(Boolean) ?? defaultAllowedOrigins
+);
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "https://taskflow-pro-sujit.vercel.app",
-      "http://10.186.82.102:3000"
-    ],
+    origin: allowedOrigins,
     credentials: true
   })
 );

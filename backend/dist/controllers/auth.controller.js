@@ -20,6 +20,11 @@ const registerSchema = zod_1.z.object({
     registrationMode: zod_1.z.enum(["CREATE_ORG", "JOIN_INVITE"]).default("CREATE_ORG"),
 });
 const normalizeEmail = (email) => email.trim().toLowerCase();
+const isProd = process.env.NODE_ENV === "production";
+const getCookieDomain = () => {
+    const value = process.env.COOKIE_DOMAIN?.trim();
+    return value ? value : undefined;
+};
 const mergeMemberships = (currentMemberships = [], nextMemberships) => {
     const membershipMap = new Map();
     currentMemberships.forEach((membership) => {
@@ -39,26 +44,15 @@ const mergeMemberships = (currentMemberships = [], nextMemberships) => {
     return Array.from(membershipMap.values());
 };
 const setCookie = (res, name, value, maxAge) => {
-    const isProd = process.env.NODE_ENV === "production";
+    const domain = getCookieDomain();
     res.cookie(name, value, {
         httpOnly: true,
-        secure: true,
-        sameSite: isProd ? "none" : "lax",
-        domain: ".vercel.app",
+        secure: isProd,
+        sameSite: "lax",
+        domain,
         maxAge,
         path: "/",
     });
-    const cookieString = [
-        `${name}=${value}`,
-        `Max-Age=${Math.floor(maxAge / 1000)}`,
-        "Path=/",
-        "HttpOnly",
-        "Secure",
-        isProd ? "SameSite=None" : "SameSite=Lax",
-    ].join("; ");
-    const existingCookies = res.getHeader("Set-Cookie") || [];
-    const cookiesArray = (Array.isArray(existingCookies) ? existingCookies : [existingCookies]).filter((cookie) => typeof cookie === "string");
-    res.setHeader("Set-Cookie", [...cookiesArray, cookieString]);
 };
 const acceptPendingInvitesForEmail = async (userId, email) => {
     const invites = await OrganizationMember_1.OrganizationMember.find({
@@ -298,24 +292,21 @@ const me = async (req, res) => {
 };
 exports.me = me;
 const logout = (_req, res) => {
-    const isProd = process.env.NODE_ENV === "production";
+    const domain = getCookieDomain();
     res.clearCookie("access_token", {
         httpOnly: true,
-        secure: true,
-        sameSite: isProd ? "none" : "lax",
+        secure: isProd,
+        sameSite: "lax",
+        domain,
         path: "/",
     });
     res.clearCookie("refresh_token", {
         httpOnly: true,
-        secure: true,
-        sameSite: isProd ? "none" : "lax",
+        secure: isProd,
+        sameSite: "lax",
+        domain,
         path: "/",
     });
-    const expiredCookies = [
-        `access_token=; Max-Age=0; Path=/; HttpOnly; Secure; ${isProd ? "SameSite=None" : "SameSite=Lax"}`,
-        `refresh_token=; Max-Age=0; Path=/; HttpOnly; Secure; ${isProd ? "SameSite=None" : "SameSite=Lax"}`,
-    ];
-    res.setHeader("Set-Cookie", expiredCookies);
     res.json({ message: "Logged out" });
 };
 exports.logout = logout;

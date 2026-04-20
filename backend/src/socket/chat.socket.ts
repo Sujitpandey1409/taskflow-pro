@@ -31,14 +31,18 @@ const CHAT_CALL_OFFER_EVENT = "chat:call:offer";
 const CHAT_CALL_ANSWER_EVENT = "chat:call:answer";
 const CHAT_CALL_ICE_EVENT = "chat:call:ice-candidate";
 const CHAT_CALL_END_EVENT = "chat:call:end";
+const defaultAllowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+];
+const allowedOrigins = (
+  process.env.CORS_ORIGINS?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? defaultAllowedOrigins
+);
 
 export const createChatServer = (server: HttpServer) => {
   const io = new Server(server, {
     cors: {
-      origin: [
-        "http://localhost:3000",
-        "https://taskflow-pro-sujit.vercel.app",
-      ],
+      origin: allowedOrigins,
       credentials: true,
     },
   });

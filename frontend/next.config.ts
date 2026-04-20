@@ -1,7 +1,20 @@
 import type { NextConfig } from "next";
 
+const backendOrigin = process.env.BACKEND_ORIGIN;
+
 const nextConfig: NextConfig = {
-  /* config options here */
+  async rewrites() {
+    if (!backendOrigin) {
+      return [];
+    }
+
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backendOrigin.replace(/\/$/, "")}/api/:path*`,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
