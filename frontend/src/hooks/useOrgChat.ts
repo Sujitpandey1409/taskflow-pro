@@ -114,6 +114,22 @@ export function useOrgChat() {
     (partnerUserId: string, partnerUserName: string, videoEnabled: boolean) => {
       const peerConnection = new RTCPeerConnection(rtcConfig);
 
+      peerConnection.onconnectionstatechange = () => {
+        const state = peerConnection.connectionState;
+
+        if (state === "connected") {
+          setActiveCall((current) => (current ? { ...current, status: "connected" } : current));
+          return;
+        }
+
+        if (state === "failed" || state === "disconnected") {
+          setErrorMessage("The live call connection dropped before media could stabilize.");
+          toast.error("The live call connection dropped.");
+          pendingOfferRef.current = null;
+          resetCallState();
+        }
+      };
+
       peerConnection.onicecandidate = (event) => {
         if (!event.candidate || !socketRef.current || !currentOrg || !user) {
           return;
@@ -133,7 +149,6 @@ export function useOrgChat() {
         const [stream] = event.streams;
         if (stream) {
           setRemoteStream(stream);
-          toast.success(`${partnerUserName} joined the call.`);
           setActiveCall((current) =>
             current
               ? { ...current, status: "connected" }
@@ -151,7 +166,7 @@ export function useOrgChat() {
       peerConnectionRef.current = peerConnection;
       return peerConnection;
     },
-    [currentOrg, user]
+    [currentOrg, resetCallState, user]
   );
 
   const getMediaStream = useCallback(async (videoEnabled: boolean) => {
