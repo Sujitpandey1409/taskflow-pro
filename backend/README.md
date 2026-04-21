@@ -13,6 +13,12 @@ This is the Express + TypeScript backend for TaskFlow Pro. It handles authentica
 - Members API for invite and membership management
 - Socket.IO server for org chat, presence, and 1:1 call signaling
 
+## Deployment Context
+
+- The backend is designed to work well behind a frontend proxy/BFF when frontend auth relies on cookies.
+- Realtime chat and call signaling are exposed through Socket.IO.
+- CORS and cookie behavior are environment-driven for deployment flexibility.
+
 ## Tech Stack
 
 - Node.js
@@ -62,7 +68,7 @@ src/
 - Global models store shared identity data such as users, organizations, and memberships.
 - Tenant models store org-specific work data such as projects and tasks.
 - `loadTenantDB` resolves the correct tenant DB for each authenticated request.
-- Chat messages are currently in-memory, while projects/tasks are persisted in MongoDB.
+- Chat messages are currently in-memory, while projects and tasks are persisted in MongoDB.
 
 ## Useful Commands
 

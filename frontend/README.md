@@ -1,6 +1,10 @@
 ﻿# TaskFlow Pro Frontend
 
-This is the Next.js frontend for TaskFlow Pro. It provides the authenticated dashboard experience for projects, tasks, team management, settings, and the floating organization chat/calling widget.
+This is the Next.js frontend for TaskFlow Pro. It provides the authenticated dashboard experience for projects, tasks, team management, settings, and the floating organization chat and calling widget.
+
+## Live Demo
+
+- App: [taskflow-pro-zddy.vercel.app](https://taskflow-pro-zddy.vercel.app/)
 
 ## Frontend Features
 
@@ -59,12 +63,13 @@ src/components/
 └── ui/                 # Shared UI primitives
 ```
 
-## Notes
+## Deployment Notes
 
+- The deployed frontend is exposed at [taskflow-pro-zddy.vercel.app](https://taskflow-pro-zddy.vercel.app/).
+- The frontend is designed to call `/api` on the same origin and let the host proxy requests to the backend.
 - Query keys are scoped by organization so cached data does not bleed across workspaces.
 - The dashboard shell is shared across authenticated routes.
 - Chat and call UI is org-scoped, but chat persistence is not implemented yet.
-- For production deployments with separate frontend/backend domains, auth may need a proxy or shared parent domain strategy.
 
 ## Useful Commands
 

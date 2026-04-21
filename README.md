@@ -1,6 +1,10 @@
 ﻿# TaskFlow Pro
 
-TaskFlow Pro is a full-stack multi-tenant task management SaaS built with Next.js, Express, TypeScript, and MongoDB. It supports organization-based data isolation, invite-driven team onboarding, project and task management, and a realtime team chat/calling workspace.
+TaskFlow Pro is a full-stack multi-tenant task management SaaS built with Next.js, Express, TypeScript, and MongoDB. It supports organization-based data isolation, invite-driven team onboarding, project and task management, and a realtime team chat and calling workspace.
+
+## Live Demo
+
+- App: [taskflow-pro-zddy.vercel.app](https://taskflow-pro-zddy.vercel.app/)
 
 ## What It Does
 
@@ -104,11 +108,11 @@ Backend: `http://localhost:5000`
 | GET | `/api/members` | List members and invites |
 | POST | `/api/members/invite` | Invite a teammate |
 
-## Notes For Deployment
+## Deployment Notes
 
-- Local development is the smoothest way to demo the full flow right now.
-- If frontend and backend are deployed on different domains, cookie-based auth and frontend middleware need extra care.
-- Best production setup is a shared parent domain such as `app.example.com` and `api.example.com`, or a frontend proxy/BFF.
+- The current deployed setup uses a Vercel frontend with API requests proxied to the backend so auth can continue using cookies safely.
+- If frontend and backend are deployed on different public domains, cookie-based auth and frontend middleware need extra care.
+- Best long-term production setup is either a shared parent domain such as `app.example.com` and `api.example.com`, or a frontend proxy/BFF.
 - Chat history is currently in-memory, so messages reset when the backend restarts.
 
 ## Verification
@@ -122,7 +126,7 @@ Current verified checks:
 
 - Persist chat messages in MongoDB
 - Add organization switching for multi-org users
-- Add richer task/project management actions
-- Harden deployed auth for split frontend/backend hosting
+- Add richer task and project management actions
+- Harden live calling with TURN support if needed
 
 Built by Sujit Pandey.
