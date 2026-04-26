@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
@@ -121,5 +121,95 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+.follow-me-badge {
+  isolation: isolate;
+  opacity: 0;
+  animation: follow-me-film 8.8s ease-in-out infinite;
+}
+
+.follow-me-badge__text {
+  opacity: 0;
+  transform: translateX(-0.8rem);
+  animation: follow-me-text 8.8s ease-in-out infinite;
+}
+
+.follow-me-badge__line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0), rgba(99, 102, 241, 0.75), rgba(244, 114, 182, 0.75), rgba(99, 102, 241, 0));
+  box-shadow: 0 0 14px rgba(129, 140, 248, 0.32);
+  opacity: 0;
+  animation: follow-me-line 8.8s ease-in-out infinite;
+}
+
+.follow-me-badge:hover,
+.follow-me-badge:focus-visible {
+  opacity: 1;
+}
+
+.follow-me-badge:hover .follow-me-badge__text,
+.follow-me-badge:focus-visible .follow-me-badge__text {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.follow-me-badge:hover .follow-me-badge__line,
+.follow-me-badge:focus-visible .follow-me-badge__line {
+  opacity: 1;
+}
+
+@keyframes follow-me-film {
+  0%, 14%, 100% {
+    opacity: 0;
+  }
+  18%, 30% {
+    opacity: 0.92;
+  }
+  34%, 96% {
+    opacity: 0;
+  }
+}
+
+@keyframes follow-me-text {
+  0%, 14%, 100% {
+    opacity: 0;
+    transform: translateX(-1rem);
+    filter: blur(4px);
+  }
+  20%, 28% {
+    opacity: 0.94;
+    transform: translateX(0);
+    filter: blur(0);
+  }
+  32%, 96% {
+    opacity: 0;
+    transform: translateX(0.85rem);
+    filter: blur(3px);
+  }
+}
+
+@keyframes follow-me-line {
+  0%, 14%, 100% {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(0.2);
+  }
+  18% {
+    opacity: 0.9;
+    transform: translateY(-50%) scaleX(0.55);
+  }
+  26% {
+    opacity: 1;
+    transform: translateY(-50%) scaleX(1);
+  }
+  32%, 96% {
+    opacity: 0;
+    transform: translateY(-50%) scaleX(1.08);
   }
 }
